@@ -83,6 +83,7 @@ else
 fi
 echo "  php $TARGET_DIR/bin/build-inventory --help"
 echo "  php $TARGET_DIR/bin/load-inventory --help"
+echo "  php $TARGET_DIR/bin/test-connection --help"
 if [ "$NEW_TENANT_INI" -eq 1 ]; then
     echo ""
     echo "A blank $TARGET_DIR/tenant.ini was installed - fill in your tenant's real"

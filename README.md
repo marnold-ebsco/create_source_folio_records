@@ -219,6 +219,16 @@ php bin/load-inventory --config=tenant.ini
 `timeout`, `debug`, etc. are optional) — never commit a filled-in one, only a
 `.sample.ini`-style template.
 
+Before a real run, `bin/test-connection` checks that a config file actually
+authenticates and can read from the tenant — logging in and making one
+read-only request, nothing else — so a bad `tenant.ini` (wrong credentials,
+tenant id, or URL) surfaces immediately instead of partway through a build
+or load:
+
+```bash
+php bin/test-connection --config=tenant.ini
+```
+
 Each record type gets its own timestamped log file under `logs/` (e.g.
 `instances_20260924_101500_ab12cd.log`) recording any record that failed to
 load and why; a one-line summary per type is also printed to stderr. See
