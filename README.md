@@ -95,15 +95,15 @@ since its filename doesn't end in `.ini`.
 (Holdings) never prompt: each uses whatever's mapped in the relevant file
 under the chosen `--mapping-dir` — `materialTypeId` from `Material_Format`,
 `permanentLocationId` from `Item_Permanent_Shelving_Location` falling back to
-`Item_Holding_Location` — falling back further to the literal `Migration`
-(each mapping file's `fallback_value`, see [Mapping files](#mapping-files)
-below) whenever a row leaves them blank. `--material-type=NAME`/
-`--loan-type=NAME` can still override the whole field, same as
-`--resource-type`. If the tenant has no material type, loan type, or
-location actually named `Migration`, the run quits immediately (with
-`--config` required in the first place, since resolving any of these needs a
-live tenant lookup) rather than only failing once a row actually needs that
-fallback.
+`Item_Holding_Location` — falling back further to each mapping file's own
+literal `fallback_value` (`Migration` for material type and location,
+`Can circulate` for loan type — see [Mapping files](#mapping-files) below)
+whenever a row leaves them blank. `--material-type=NAME`/`--loan-type=NAME`
+can still override the whole field, same as `--resource-type`. If the tenant
+has no material type, loan type, or location actually named by its
+configured fallback, the run quits immediately (with `--config` required in
+the first place, since resolving any of these needs a live tenant lookup)
+rather than only failing once a row actually needs that fallback.
 
 ```bash
 php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \

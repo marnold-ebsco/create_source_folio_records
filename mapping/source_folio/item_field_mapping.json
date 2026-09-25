@@ -19,9 +19,9 @@
             "folio_field": "permanentLoanTypeId",
             "legacy_field": "Not mapped",
             "value": "",
-            "description": "Permanent loan type name or id (live:loanType)  REQUIRED  type: string pattern: UUID  -- no source column in source_folio.tsv, so this always falls back to the literal 'Migration' (fallback_value) instead of prompting. bin/build-inventory quits before processing any rows if the tenant has no loan type named 'Migration'.",
+            "description": "Permanent loan type name or id (live:loanType)  REQUIRED  type: string pattern: UUID  -- no source column in source_folio.tsv, so this always falls back to the literal 'Can circulate' (fallback_value) instead of prompting. bin/build-inventory quits before processing any rows if the tenant has no loan type named 'Can circulate'.",
             "fallback_legacy_field": "",
-            "fallback_value": "Migration"
+            "fallback_value": "Can circulate"
         },
         {
             "folio_field": "circulationNotes[1].note",

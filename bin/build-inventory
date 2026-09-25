@@ -61,12 +61,15 @@
  * `permanentLocationId` (Holdings), never prompt: each uses the row's own
  * mapped column(s) (`Material_Format`; none;
  * `Item_Permanent_Shelving_Location`/`Item_Holding_Location`), falling
- * back to the literal `Migration` (`--material-type`/`--loan-type` CLI
- * options can still override the whole field) whenever a row's own value
- * is blank — see each mapping file's `fallback_value`. If the tenant (via
- * `--config`) has no material type, loan type, or location actually named
- * `Migration`, the whole run quits immediately rather than only failing
- * per-row once that fallback is needed — see checkMigrationFallbackExists().
+ * back to each mapping file's own literal `fallback_value` (`Migration`
+ * for the material type and location; `Can circulate` for the loan type
+ * — see each mapping file; `--material-type`/`--loan-type` CLI options
+ * can still override the whole field) whenever a row's own value is
+ * blank. If the tenant
+ * (via `--config`) has no material type, loan type, or location actually
+ * named by its configured fallback, the whole run quits immediately
+ * rather than only failing per-row once that fallback is needed — see
+ * checkLiveFallbacksExist().
  *
  * See \SourceFolioRecords\RecordBuilder, \SourceFolioRecords\Mapping\FieldMapper,
  * \SourceFolioRecords\Io\DelimitedFileReader, \SourceFolioRecords\Io\ErrorLog,
@@ -502,36 +505,43 @@ function buildLiveResolvers(FieldMapper $instanceMapper, FieldMapper $holdingsMa
 }
 
 /**
- * Verify the tenant actually has a 'Migration' material type, loan type,
- * and location — the shared literal `fallback_value` used by
- * `materialTypeId`, `permanentLoanTypeId` (Item), and `permanentLocationId`
- * (Holdings) whenever a row's own column data is blank (see the mapping
- * files). Checked once, right after {@see buildLiveResolvers()}, so a
- * tenant missing 'Migration' quits the whole run immediately instead of
- * only surfacing as a per-row validation error on whichever rows happen
- * to need the fallback. Each of the three is only checked if its field is
- * actually mapped (so a mapping file that removes the fallback entirely
- * isn't held to this).
+ * Verify the tenant actually has whatever `materialTypeId`,
+ * `permanentLoanTypeId` (Item), and `permanentLocationId` (Holdings) each
+ * fall back to (their mapping file's own `fallback_value` — e.g.
+ * `Material_Format`'s configured "if blank, use X" literal — read via
+ * {@see FieldMapper::fallbackValueFor()} rather than assumed here) for
+ * whenever a row's own column data is blank. Checked once, right after
+ * {@see buildLiveResolvers()}, so a tenant missing one of these fallbacks
+ * quits the whole run immediately instead of only surfacing as a per-row
+ * validation error on whichever rows happen to need it. Each of the
+ * three is only checked if its field actually has a `fallback_value`.
  *
  * @return One message per problem found; empty if none.
  */
-function checkMigrationFallbackExists(FieldMapper $itemMapper, FieldMapper $holdingsMapper, LocationResolver $locations, array $liveReferences): array {
+function checkLiveFallbacksExist(FieldMapper $itemMapper, FieldMapper $holdingsMapper, LocationResolver $locations, array $liveReferences): array {
     $problems = [];
-    if ($itemMapper->isMapped('materialTypeId')) {
+
+    $materialTypeFallback = $itemMapper->fallbackValueFor('materialTypeId');
+    if ($materialTypeFallback !== null) {
         $materialTypes = $liveReferences['materialType'] ?? LiveReferenceResolver::empty();
-        if ($materialTypes->idForName('Migration') === null) {
-            $problems[] = "the tenant has no material type named 'Migration' (the fallback used when a row's own material type is blank).";
+        if ($materialTypes->idForName($materialTypeFallback) === null) {
+            $problems[] = "the tenant has no material type named '$materialTypeFallback' (materialTypeId's configured fallback, used when a row's own material type is blank).";
         }
     }
-    if ($itemMapper->isMapped('permanentLoanTypeId')) {
+
+    $loanTypeFallback = $itemMapper->fallbackValueFor('permanentLoanTypeId');
+    if ($loanTypeFallback !== null) {
         $loanTypes = $liveReferences['loanType'] ?? LiveReferenceResolver::empty();
-        if ($loanTypes->idForName('Migration') === null) {
-            $problems[] = "the tenant has no loan type named 'Migration' (the fallback used when a row's own loan type is blank).";
+        if ($loanTypes->idForName($loanTypeFallback) === null) {
+            $problems[] = "the tenant has no loan type named '$loanTypeFallback' (permanentLoanTypeId's configured fallback, used when a row's own loan type is blank).";
         }
     }
-    if ($holdingsMapper->isMapped('permanentLocationId') && $locations->idForName('Migration') === null) {
-        $problems[] = "the tenant has no location named 'Migration' (the fallback used when a row's own shelving location is blank).";
+
+    $locationFallback = $holdingsMapper->fallbackValueFor('permanentLocationId');
+    if ($locationFallback !== null && $locations->idForName($locationFallback) === null) {
+        $problems[] = "the tenant has no location named '$locationFallback' (permanentLocationId's configured fallback, used when a row's own shelving location is blank).";
     }
+
     return $problems;
 }
 
@@ -635,9 +645,9 @@ function main(array $argv): int {
         return 1;
     }
 
-    $migrationProblems = checkMigrationFallbackExists($itemMapper, $holdingsMapper, $locations, $liveReferences);
-    if ($migrationProblems !== []) {
-        foreach ($migrationProblems as $problem) {
+    $fallbackProblems = checkLiveFallbacksExist($itemMapper, $holdingsMapper, $locations, $liveReferences);
+    if ($fallbackProblems !== []) {
+        foreach ($fallbackProblems as $problem) {
             fwrite(STDERR, "Error: $problem\n");
         }
         return 1;

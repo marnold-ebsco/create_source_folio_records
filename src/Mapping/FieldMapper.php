@@ -170,6 +170,25 @@ final class FieldMapper {
     }
 
     /**
+     * A field's `fallback_value` (see {@see resolve()}), if it has one —
+     * used by `bin/build-inventory` to check a live reference field's
+     * *actual configured* fallback literal against the tenant (e.g. "does
+     * the tenant really have a material type named whatever
+     * `materialTypeId`'s `fallback_value` says?") rather than hard-coding
+     * that literal a second time in the script itself.
+     *
+     * @param $folioField Same notation as {@see resolve()}.
+     * @return The fallback literal, or null if this field has none.
+     */
+    public function fallbackValueFor(string $folioField): ?string {
+        $entry = $this->index[self::normalizeKey(strtolower($folioField))] ?? null;
+        if ($entry === null || !isset($entry['fallback_value']) || (string) $entry['fallback_value'] === '') {
+            return null;
+        }
+        return (string) $entry['fallback_value'];
+    }
+
+    /**
      * Whether this field resolves to a fixed literal (a non-empty
      * `value` in the mapping entry) — true means {@see resolve()} would
      * return the same thing for *every* row, regardless of data. Used by
