@@ -8,9 +8,38 @@ only if at least one mapping file actually maps one.
 
 ## Setup
 
+### Option 1: just want to run it (no clone needed)
+
+`install.sh` fetches a runtime-only copy — `bin/`, `src/`, `mapping/`,
+`composer.json`/`composer.lock`, this README — into a fresh directory (no
+`tests/`, no sample `.tsv` fixtures, no git history left behind) and runs
+`composer install --no-dev` there:
+
 ```bash
+curl -fsSL https://raw.githubusercontent.com/marnold-ebsco/create_source_folio_records/main/install.sh | bash -s -- ./create_source_folio_records
+```
+
+or, if you already have the script:
+
+```bash
+bash install.sh [target-dir]   # target-dir defaults to ./create_source_folio_records
+```
+
+Then use `php <target-dir>/bin/build-inventory ...` / `bin/load-inventory ...`
+exactly as described below. Re-run it (into a new or emptied directory) to
+pick up updates — there's no git remote left in `target-dir` to `pull` from.
+
+### Option 2: developing this project
+
+```bash
+git clone git@github.com:marnold-ebsco/create_source_folio_records.git
+cd create_source_folio_records
 composer install
 ```
+
+This pulls dev dependencies too (`phpunit`) and keeps `tests/` and the
+sample `.tsv` files, for running `vendor/bin/phpunit` and testing against
+real data — see [Tests](#tests) below.
 
 ## Usage
 
