@@ -26,8 +26,14 @@ bash install.sh [target-dir]   # target-dir defaults to ./create_source_folio_re
 ```
 
 Then use `php <target-dir>/bin/build-inventory ...` / `bin/load-inventory ...`
-exactly as described below. Re-run it (into a new or emptied directory) to
-pick up updates — there's no git remote left in `target-dir` to `pull` from.
+exactly as described below.
+
+**To update an existing install**, run the exact same command again with the
+same `target-dir` — there's no git remote left in `target-dir` to `pull`
+from, so this is how you pick up changes instead. `bin/`, `src/`, `mapping/`,
+and the composer files are replaced wholesale with the latest versions (so a
+file removed or renamed upstream doesn't linger); `tenant.ini`, `output/`,
+and `logs/` are left untouched either way.
 
 ### Option 2: developing this project
 
