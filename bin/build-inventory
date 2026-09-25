@@ -1,0 +1,514 @@
+#!/usr/bin/env php
+<?php declare(strict_types=1);
+
+/**
+ * bin/build-inventory
+ *
+ * Reads a delimited file of EZBorrow-style circulation data and builds
+ * FOLIO Instance, Holdings, and Item records from it, linked together
+ * (Holdings.instanceId -> Instance.id, Item.holdingsRecordId ->
+ * Holdings.id). Build-only: this script never writes to a live FOLIO
+ * tenant, it only writes JSON files — the one exception is a couple of
+ * read-only lookups (see `--config` below): the tenant's existing
+ * statistical codes, made only if a mapping file actually maps
+ * `statisticalCodeIds`; and its holdings sources, made only if the
+ * holdings mapping maps `sourceId` (which it does by default — see
+ * `mapping/holdings_field_mapping.json`, hard-coded to `FOLIO`).
+ *
+ * Rows are *not* simply 1:1:1 with instance/holdings/item — repeated
+ * rows sharing the same title + author collapse into a single shared
+ * Instance, and within that, rows also sharing the same call number +
+ * location collapse into a single shared Holdings; every row still
+ * produces its own Item, attached to whichever (possibly shared)
+ * Holdings its own call number/location matches. See
+ * \SourceFolioRecords\RecordGrouping for the exact grouping rules.
+ *
+ * Every record's own `id` is deterministic (uuid5) — see
+ * \SourceFolioRecords\ReferenceRegistry — so re-running against the same
+ * input reproduces identical ids rather than inventing new ones each
+ * time: an Instance's id is derived from its title+author grouping key,
+ * a Holdings' id from its title+author+call number+location grouping
+ * key, and an Item's id from its own row's `legacyIdentifier` (the
+ * row's barcode when non-empty, else a hash of title/author/publication
+ * date/ISBN — see \SourceFolioRecords\LegacyIdentifier). An Instance's
+ * `legacyIdentifier` field records the barcode-or-hash identifier of
+ * whichever row first created it.
+ *
+ * If a record fails validation (e.g. a missing `title`), that record —
+ * and anything downstream of it for that row (a failed Instance also
+ * skips that row's Holdings/Item; a failed Holdings also skips that
+ * row's Item) — is skipped and logged, rather than shipping a
+ * known-bad record. An already-successfully-built shared Instance or
+ * Holdings from an earlier row is never discarded because a later row
+ * sharing its key fails. A `statisticalCodeIds` lookup that didn't
+ * resolve is logged as a warning instead and does *not* skip anything
+ * — see \SourceFolioRecords\RowValidation.
+ *
+ * `instanceTypeId` (Instance), `materialTypeId` and `permanentLoanTypeId`
+ * (Item) are all required fields with no source column in ezborrow.tsv.
+ * Each can be supplied three ways, checked in this order: a `--resource-
+ * type`/`--material-type`/`--loan-type` CLI option; a literal `value`
+ * already filled into the relevant mapping file; or, if neither is
+ * given, an interactive prompt (once per run, reused for every record).
+ *
+ * See \SourceFolioRecords\RecordBuilder, \SourceFolioRecords\Mapping\FieldMapper,
+ * \SourceFolioRecords\Io\DelimitedFileReader, \SourceFolioRecords\Io\ErrorLog,
+ * and the schema classes under \SourceFolioRecords\Schema for the field
+ * mapping/validation rules.
+ *
+ * Usage:
+ *   php bin/build-inventory --input=ezborrow.tsv [options]
+ *
+ * Options:
+ *   --input=PATH             Delimited input file (required).
+ *   --mapping-dir=PATH        Directory holding instance_field_mapping.json,
+ *                             holdings_field_mapping.json, and
+ *                             item_field_mapping.json (default: mapping/
+ *                             at the project root).
+ *   --output-dir=PATH         Directory to write instances.json/holdings.json/
+ *                             items.json (default: output/ at the project
+ *                             root; created if missing).
+ *   --format=json|ndjson      Output format for all three files (default:
+ *                             ndjson — one JSON object per line; "json"
+ *                             writes a single JSON array per file instead).
+ *   --delimiter=CHAR          Field delimiter (default: tab). Accepts "tab",
+ *                             "pipe", "semicolon", "comma" as convenience names.
+ *   --enclosure=CHAR          Field quote/enclosure character (default: ").
+ *   --list-delimiter=STR      Delimiter used *within* a single cell for
+ *                             multi-value fields (default: |).
+ *   --resource-type=NAME      Literal resource type name for every instance's
+ *                             instanceTypeId — skips the interactive prompt.
+ *   --material-type=NAME      Literal material type name for every item's
+ *                             materialTypeId — skips the interactive prompt.
+ *   --loan-type=NAME          Literal permanent loan type name for every
+ *                             item's permanentLoanTypeId — skips the
+ *                             interactive prompt.
+ *   --config=PATH             INI file with FOLIO connection settings, per
+ *                             \phpFolioClient\FolioConfig (okapiUrl,
+ *                             tenant_id, username, password; sslVerify/
+ *                             timeout/debug/etc. optional). Required if a
+ *                             mapping file's `statisticalCodeIds` entry
+ *                             has a literal `value` filled in, and/or the
+ *                             holdings mapping's `sourceId` does (true by
+ *                             default) — used for read-only lookups to
+ *                             verify each configured id/name against the
+ *                             tenant's real reference data (see
+ *                             \SourceFolioRecords\StatisticalCodeResolver
+ *                             and \SourceFolioRecords\HoldingsSourceResolver).
+ *   --error-log=PATH          Validation log for this run (default: a
+ *                             fresh, timestamped file under logs/ at the
+ *                             project root, created automatically).
+ *   --help                   Show this message.
+ */
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use SourceFolioRecords\Casting\ValueCaster;
+use SourceFolioRecords\Cli\Options;
+use SourceFolioRecords\HoldingsSourceResolver;
+use SourceFolioRecords\Io\DelimitedFileReader;
+use SourceFolioRecords\Io\ErrorLog;
+use SourceFolioRecords\LegacyIdentifier;
+use SourceFolioRecords\LiveReferenceResolver;
+use SourceFolioRecords\LocationResolver;
+use SourceFolioRecords\Mapping\FieldMapper;
+use SourceFolioRecords\RecordBuilder;
+use SourceFolioRecords\RecordGrouping;
+use SourceFolioRecords\ReferenceRegistry;
+use SourceFolioRecords\RowValidation;
+use SourceFolioRecords\Schema\HoldingsSchema;
+use SourceFolioRecords\Schema\InstanceSchema;
+use SourceFolioRecords\Schema\ItemSchema;
+use SourceFolioRecords\StatisticalCodeResolver;
+use phpFolioClient\FolioAuth;
+use phpFolioClient\FolioClient;
+use phpFolioClient\FolioConfig;
+use phpFolioClient\FolioReferenceDataManager;
+use phpFolioClient\FolioUtils;
+
+const PROJECT_ROOT = __DIR__ . '/..';
+
+/**
+ * If a mapping file leaves a required reference field with no literal
+ * value and no mapped column, and no CLI option supplied one either,
+ * prompt for one value to use for every record in this run, and inject
+ * it as that field's literal via {@see FieldMapper::setLiteral()}.
+ *
+ * @param $cliOptionValue The relevant `--resource-type`/`--material-type`/
+ *                        `--loan-type` option's value, or `''` if not given.
+ */
+function promptForLiteralIfUnmapped(FieldMapper $mapper, string $field, string $cliOptionValue, string $promptLabel): void {
+    if ($cliOptionValue !== '') {
+        $mapper->setLiteral($field, $cliOptionValue);
+        return;
+    }
+    if ($mapper->isMapped($field)) {
+        return;
+    }
+    fwrite(STDERR, "$promptLabel: ");
+    $answer = trim((string) fgets(STDIN));
+    if ($answer !== '') {
+        $mapper->setLiteral($field, $answer);
+    }
+}
+
+/**
+ * Write a list of records to a path as json or ndjson. If there are no
+ * records, no file is created (any stale file left over from a previous
+ * run at that path is removed instead), rather than shipping an empty/
+ * near-empty file.
+ */
+function writeRecords(array $records, string $path, string $format): void {
+    if ($records === []) {
+        if (file_exists($path)) {
+            unlink($path);
+        }
+        return;
+    }
+    $handle = fopen($path, 'w');
+    if ($format === 'ndjson') {
+        foreach ($records as $record) {
+            fwrite($handle, json_encode($record, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+        }
+    } else {
+        fwrite($handle, json_encode($records, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+    }
+    fclose($handle);
+}
+
+/**
+ * Whether a mapping file has at least one mapped `statisticalCodeIds[N]`
+ * entry (a literal `value`, or a legacy/fallback column) — `[N]` is a
+ * repeatable scalar field (see \SourceFolioRecords\Schema\InstanceSchema's
+ * `SCALAR_LISTS`), so there's no single bare `statisticalCodeIds` key to
+ * check with {@see FieldMapper::isMapped()} directly.
+ */
+function mapperHasStatisticalCodes(FieldMapper $mapper): bool {
+    foreach ($mapper->scalarListIndicesFor('statisticalCodeIds') as $index) {
+        if ($mapper->isMapped("statisticalCodeIds[$index]")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Whether a nested-group sub-field has at least one mapped instance
+ * (e.g. `identifiers[N].identifierTypeId` for some N) — mirrors
+ * {@see mapperHasStatisticalCodes()}, but for a `NESTED_GROUPS` field
+ * rather than a `SCALAR_LISTS` one.
+ */
+function mapperHasNestedGroupField(FieldMapper $mapper, string $schemaKey, string $subField): bool {
+    foreach ($mapper->indicesFor($schemaKey) as $index) {
+        if ($mapper->isMapped("{$schemaKey}[{$index}].{$subField}")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Fetch every record's id/name from a FOLIO endpoint that
+ * `phpFolioClient\FolioReferenceDataManager` has no dedicated helper
+ * for (instance types, contributor name types, identifier types) —
+ * same technique {@see HoldingsSourceResolver::fromClient()} uses.
+ */
+function fetchNamesById(FolioClient $client, string $endpoint): array {
+    $namesById = [];
+    foreach ($client->get($endpoint) as $record) {
+        $namesById[$record->id] = $record->name;
+    }
+    return $namesById;
+}
+
+/**
+ * Build every live-tenant resolver this run needs — a
+ * {@see StatisticalCodeResolver} if any of the three mapping files maps
+ * a `statisticalCodeIds[N]` entry, a {@see HoldingsSourceResolver} if
+ * the holdings mapping maps `sourceId`, a {@see LocationResolver} if
+ * the holdings mapping maps `permanentLocationId` (the only
+ * `HoldingsSchema::SCALAR_FIELDS` location field typed `live:location`
+ * today), and a {@see LiveReferenceResolver} per other `live:<namespace>`
+ * field actually mapped (`instanceType`, `materialType`, `loanType`,
+ * `contributorNameType`, `identifierType`) — sharing a single FOLIO
+ * client (and thus a single login) between all of them rather than
+ * logging in more than once. Any resolver is an empty (no-network) one
+ * if nothing needs it.
+ *
+ * @param $instanceMapper, $holdingsMapper, $itemMapper The three mappers.
+ * @param $configOption The `--config` option's value, or `''` if not given.
+ * @return `[$statisticalCodes, $holdingsSources, $locations, $liveReferences]`
+ *         — the last a `namespace => LiveReferenceResolver` array.
+ * @throws \RuntimeException If a live lookup is needed but `--config`
+ *                     wasn't given, or the config file couldn't be loaded.
+ */
+function buildLiveResolvers(FieldMapper $instanceMapper, FieldMapper $holdingsMapper, FieldMapper $itemMapper, string $configOption): array {
+    $needsStatisticalCodes = mapperHasStatisticalCodes($instanceMapper)
+        || mapperHasStatisticalCodes($holdingsMapper)
+        || mapperHasStatisticalCodes($itemMapper);
+    $needsHoldingsSource = $holdingsMapper->isMapped('sourceId');
+    // Only permanentLocationId is `live:location` today; temporaryLocationId
+    // stays fabricated via `ref:location` (see HoldingsSchema's docblock),
+    // so its own mapped-ness doesn't need a live lookup.
+    $needsLocation = $holdingsMapper->isMapped('permanentLocationId');
+
+    $liveReferenceNeeds = [
+        'instanceType' => $instanceMapper->isMapped('instanceTypeId'),
+        'materialType' => $itemMapper->isMapped('materialTypeId'),
+        'loanType' => $itemMapper->isMapped('permanentLoanTypeId'),
+        'contributorNameType' => mapperHasNestedGroupField($instanceMapper, 'contributors', 'contributorNameTypeId'),
+        'identifierType' => mapperHasNestedGroupField($instanceMapper, 'identifiers', 'identifierTypeId'),
+    ];
+
+    if (!$needsStatisticalCodes && !$needsHoldingsSource && !$needsLocation && !in_array(true, $liveReferenceNeeds, true)) {
+        return [StatisticalCodeResolver::empty(), HoldingsSourceResolver::empty(), LocationResolver::empty(), []];
+    }
+    if ($configOption === '') {
+        throw new \RuntimeException(
+            "a mapping file needs a live reference lookup (statistical codes, Holdings' sourceId/location, or Instance/Item reference fields), but --config wasn't given"
+        );
+    }
+
+    $config = new FolioConfig($configOption);
+    $client = new FolioClient($config, new FolioAuth($config), new FolioUtils());
+    $referenceDataManager = new FolioReferenceDataManager($client);
+
+    $statisticalCodes = $needsStatisticalCodes
+        ? StatisticalCodeResolver::fromReferenceDataManager($referenceDataManager)
+        : StatisticalCodeResolver::empty();
+    $holdingsSources = $needsHoldingsSource
+        ? HoldingsSourceResolver::fromClient($client)
+        : HoldingsSourceResolver::empty();
+    $locations = $needsLocation
+        ? LocationResolver::fromReferenceDataManager($referenceDataManager)
+        : LocationResolver::empty();
+
+    $liveReferenceEndpoints = [
+        'instanceType' => 'instance-types',
+        'contributorNameType' => 'contributor-name-types',
+        'identifierType' => 'identifier-types',
+    ];
+    $liveReferences = [];
+    foreach ($liveReferenceNeeds as $namespace => $needed) {
+        if (!$needed) {
+            continue;
+        }
+        $namesById = match ($namespace) {
+            'materialType' => $referenceDataManager->getMaterialTypes(),
+            'loanType' => $referenceDataManager->getLoanTypes(),
+            default => fetchNamesById($client, $liveReferenceEndpoints[$namespace]),
+        };
+        $liveReferences[$namespace] = new LiveReferenceResolver($namesById);
+    }
+
+    return [$statisticalCodes, $holdingsSources, $locations, $liveReferences];
+}
+
+function printHelp(): void {
+    $source = file_get_contents(__FILE__);
+    if (preg_match('#/\*\*(.*?)\*/#s', (string) $source, $m)) {
+        foreach (explode("\n", $m[1]) as $line) {
+            echo ltrim(rtrim($line), " \t*") . "\n";
+        }
+    }
+}
+
+function main(array $argv): int {
+    $options = Options::parse($argv);
+
+    if (isset($options['help'])) {
+        printHelp();
+        return 0;
+    }
+    if (empty($options['input']) || !is_string($options['input'])) {
+        fwrite(STDERR, "Error: --input is required. Use --help for usage.\n");
+        return 1;
+    }
+
+    $mappingDir = is_string($options['mapping-dir'] ?? null) ? rtrim($options['mapping-dir'], '/\\') : PROJECT_ROOT . '/mapping';
+    $outputDir = is_string($options['output-dir'] ?? null) ? rtrim($options['output-dir'], '/\\') : PROJECT_ROOT . '/output';
+    $format = is_string($options['format'] ?? null) ? $options['format'] : 'ndjson';
+    $delimiter = Options::resolveDelimiter(is_string($options['delimiter'] ?? null) ? $options['delimiter'] : "\t");
+    $enclosure = is_string($options['enclosure'] ?? null) ? $options['enclosure'] : '"';
+    $listDelimiter = is_string($options['list-delimiter'] ?? null) ? $options['list-delimiter'] : '|';
+
+    if (!is_dir($outputDir) && !mkdir($outputDir, 0777, true) && !is_dir($outputDir)) {
+        fwrite(STDERR, "Error: cannot create output directory '$outputDir'.\n");
+        return 1;
+    }
+
+    $errorLogPath = is_string($options['error-log'] ?? null)
+        ? $options['error-log']
+        : ErrorLog::defaultPathFor($options['input'], PROJECT_ROOT . '/logs');
+    $errorLog = new ErrorLog($errorLogPath);
+    $errorLog->open();
+    $errorLog->write('Run started ' . date('Y-m-d H:i:s'));
+    $errorLog->write("Input: {$options['input']}");
+    $errorLog->write('');
+
+    $caster = new ValueCaster();
+    $folioUtils = new FolioUtils();
+    $registry = new ReferenceRegistry();
+
+    try {
+        $instanceMapper = FieldMapper::fromFile($mappingDir . '/instance_field_mapping.json');
+        $holdingsMapper = FieldMapper::fromFile($mappingDir . '/holdings_field_mapping.json');
+        $itemMapper = FieldMapper::fromFile($mappingDir . '/item_field_mapping.json');
+    } catch (\RuntimeException $e) {
+        fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        return 1;
+    }
+
+    promptForLiteralIfUnmapped(
+        $instanceMapper,
+        'instanceTypeId',
+        is_string($options['resource-type'] ?? null) ? $options['resource-type'] : '',
+        'Enter the resource type to use for every instance'
+    );
+    promptForLiteralIfUnmapped(
+        $itemMapper,
+        'materialTypeId',
+        is_string($options['material-type'] ?? null) ? $options['material-type'] : '',
+        'Enter the material type to use for every item'
+    );
+    promptForLiteralIfUnmapped(
+        $itemMapper,
+        'permanentLoanTypeId',
+        is_string($options['loan-type'] ?? null) ? $options['loan-type'] : '',
+        'Enter the permanent loan type to use for every item'
+    );
+
+    try {
+        [$statisticalCodes, $holdingsSources, $locations, $liveReferences] = buildLiveResolvers(
+            $instanceMapper,
+            $holdingsMapper,
+            $itemMapper,
+            is_string($options['config'] ?? null) ? $options['config'] : ''
+        );
+    } catch (\Throwable $e) {
+        fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        return 1;
+    }
+
+    $instanceBuilder = new RecordBuilder($instanceMapper, $caster, $folioUtils, InstanceSchema::class, $listDelimiter, $registry, $statisticalCodes, null, null, $liveReferences);
+    $holdingsBuilder = new RecordBuilder($holdingsMapper, $caster, $folioUtils, HoldingsSchema::class, $listDelimiter, $registry, $statisticalCodes, $holdingsSources, $locations, $liveReferences);
+    $itemBuilder = new RecordBuilder($itemMapper, $caster, $folioUtils, ItemSchema::class, $listDelimiter, $registry, $statisticalCodes, null, null, $liveReferences);
+
+    $reader = new DelimitedFileReader($options['input'], $delimiter, $enclosure);
+    try {
+        $reader->open();
+    } catch (\RuntimeException $e) {
+        fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        return 1;
+    }
+
+    $instances = [];
+    $holdings = [];
+    $items = [];
+    $instanceIdByKey = [];
+    $holdingsIdByKey = [];
+    $hadErrors = false;
+    $skippedItems = 0;
+
+    foreach ($reader->rows() as $rowNum => $row) {
+        $instanceKey = RecordGrouping::instanceKey($row);
+
+        if (!isset($instanceIdByKey[$instanceKey])) {
+            $instanceResult = $instanceBuilder->build($row, $rowNum);
+            $instanceErrors = $instanceResult->getErrors();
+            foreach ($instanceErrors as $error) {
+                $errorLog->write($error);
+            }
+            if ($instanceErrors !== []) {
+                $hadErrors = true;
+            }
+            if (RowValidation::hasFatalErrors($instanceErrors)) {
+                $errorLog->write("Row $rowNum: skipped - instance failed validation.");
+                $errorLog->write('');
+                $skippedItems++;
+                continue;
+            }
+
+            $instance = $instanceResult->getRecord();
+            $instance['id'] = $registry->resolve('instance', $instanceKey, $rowNum);
+            $instance['legacyIdentifier'] = LegacyIdentifier::compute($row);
+            $instanceIdByKey[$instanceKey] = $instance['id'];
+            $instances[] = $instance;
+        }
+        $instanceId = $instanceIdByKey[$instanceKey];
+
+        $holdingsKey = RecordGrouping::holdingsKey($row);
+
+        if (!isset($holdingsIdByKey[$holdingsKey])) {
+            $holdingsResult = $holdingsBuilder->build($row, $rowNum);
+            $holdingsErrors = $holdingsResult->getErrors();
+            foreach ($holdingsErrors as $error) {
+                $errorLog->write($error);
+            }
+            if ($holdingsErrors !== []) {
+                $hadErrors = true;
+            }
+            if (RowValidation::hasFatalErrors($holdingsErrors)) {
+                $errorLog->write("Row $rowNum: skipped - holdings failed validation.");
+                $errorLog->write('');
+                $skippedItems++;
+                continue;
+            }
+
+            $holdingsRecord = $holdingsResult->getRecord();
+            $holdingsRecord['id'] = $registry->resolve('holdings', $holdingsKey, $rowNum);
+            $holdingsRecord['instanceId'] = $instanceId;
+            $holdingsIdByKey[$holdingsKey] = $holdingsRecord['id'];
+            $holdings[] = $holdingsRecord;
+        }
+        $holdingsId = $holdingsIdByKey[$holdingsKey];
+
+        $itemResult = $itemBuilder->build($row, $rowNum);
+        $itemErrors = $itemResult->getErrors();
+        foreach ($itemErrors as $error) {
+            $errorLog->write($error);
+        }
+        if ($itemErrors !== []) {
+            $hadErrors = true;
+        }
+        if (RowValidation::hasFatalErrors($itemErrors)) {
+            $errorLog->write("Row $rowNum: skipped - item failed validation.");
+            $errorLog->write('');
+            $skippedItems++;
+            continue;
+        }
+
+        $item = $itemResult->getRecord();
+        $item['id'] = $registry->resolve('item', LegacyIdentifier::compute($row), $rowNum);
+        $item['holdingsRecordId'] = $holdingsId;
+        $items[] = $item;
+    }
+    $reader->close();
+
+    writeRecords($instances, $outputDir . '/instances.json', $format);
+    writeRecords($holdings, $outputDir . '/holdings.json', $format);
+    writeRecords($items, $outputDir . '/items.json', $format);
+
+    $errorLog->write('');
+    $errorLog->write(sprintf(
+        'Built %d instance(s), %d holdings record(s), %d item(s); skipped %d row(s) with a failing record.',
+        count($instances),
+        count($holdings),
+        count($items),
+        $skippedItems
+    ));
+    $errorLog->close();
+
+    fwrite(STDERR, sprintf(
+        "Built %d instance(s), %d holdings record(s), %d item(s); skipped %d row(s) with a failing record. Log: %s\n",
+        count($instances),
+        count($holdings),
+        count($items),
+        $skippedItems,
+        $errorLogPath
+    ));
+
+    return $hadErrors ? 1 : 0;
+}
+
+exit(main($argv));

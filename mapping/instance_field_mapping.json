@@ -1,0 +1,94 @@
+{
+    "data": [
+        {
+            "folio_field": "title",
+            "legacy_field": "Title",
+            "value": "",
+            "description": "The primary title (or label) associated with the resource  REQUIRED  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "source",
+            "legacy_field": "Not mapped",
+            "value": "FOLIO",
+            "description": "The metadata source and its format of the underlying record to the instance record  REQUIRED  type: string  -- hard-coded to \"FOLIO\" for every instance (this tool creates brand-new instances, not derived from a MARC record)",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "discoverySuppress",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Records the fact that the record should not be displayed in a discovery system  type: boolean",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "statusId",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Instance status term, e.g. \"Cataloged\"/\"Uncataloged\" (ref:instanceStatus)  type: string pattern: UUID",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "instanceTypeId",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Resource type, e.g. \"text\" (ref:instanceType)  REQUIRED  type: string pattern: UUID  -- left unmapped here on purpose: bin/build-inventory prompts for one value to use for every instance if this stays blank (see --resource-type)",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "identifiers[1].value",
+            "legacy_field": "Title_ISBN",
+            "value": "",
+            "description": "ISBN value  Required if used  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "identifiers[1].identifierTypeId",
+            "legacy_field": "Not mapped",
+            "value": "ISBN",
+            "description": "Identifier type name for identifiers[1] (ref:identifierType)  Required if used  type: string pattern: UUID",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "identifiers[2].value",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "ISSN value  Required if used  type: string  -- no ISSN column exists in ezborrow.tsv, so this instance never builds from that file",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "identifiers[2].identifierTypeId",
+            "legacy_field": "Not mapped",
+            "value": "ISSN",
+            "description": "Identifier type name for identifiers[2] (ref:identifierType)  Required if used  type: string pattern: UUID",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "contributors[1].name",
+            "legacy_field": "Author_Name",
+            "value": "",
+            "description": "Contributor's name  Required if used  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "contributors[1].contributorNameTypeId",
+            "legacy_field": "Not mapped",
+            "value": "Personal name",
+            "description": "Contributor name type name (ref:contributorNameType)  Required if used  type: string pattern: UUID",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "publication[1].dateOfPublication",
+            "legacy_field": "Publication_Date",
+            "value": "",
+            "description": "Date of publication  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "statisticalCodeIds[0]",
+            "legacy_field": "Not mapped",
+            "value": "EZBorrow",
+            "description": "A universally unique identifier (UUID), this is a 128-bit number used to identify a record and is shown in hex with dashes, for example 6312d172-f0cf-40f6-b27d-9fa8feaf332f; the UUID version must be from 1-5; see https://dev.folio.org/guides/uuids/  type: string pattern: UUID  -- OR a statistical code's name instead of its UUID; either way it's applied to every instance. Add statisticalCodeIds[1], [2], etc. for more than one. A UUID is checked against the tenant's existing statistical codes; a name is looked up and replaced with its id. Anything not found is logged and dropped. Requires bin/build-inventory's --config to be set if any of these are filled in."
+        }
+    ]
+}

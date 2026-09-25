@@ -1,0 +1,35 @@
+{
+    "name": "ebsco/source-folio-records",
+    "description": "Builds FOLIO Instance/Holdings/Item JSON records from delimited legacy data files (build-only, no loading to a live tenant).",
+    "type": "library",
+    "require": {
+        "php": ">=8.1",
+        "ext-mbstring": "*",
+        "marnold-ebsco/phpfolioclient": "^2.0.10"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/marnold-ebsco/phpFolioClient"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "SourceFolioRecords\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SourceFolioRecords\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/build-inventory",
+        "bin/load-inventory"
+    ]
+}

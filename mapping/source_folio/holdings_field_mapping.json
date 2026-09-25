@@ -1,0 +1,58 @@
+{
+    "data": [
+        {
+            "folio_field": "permanentLocationId",
+            "legacy_field": "Not mapped",
+            "value": "Migration",
+            "description": "Permanent shelving location name (live:location)  REQUIRED  type: string pattern: UUID  -- OR a location's name instead of its UUID. Hard-coded to the tenant's real \"Migration\" location for every holdings record: source_folio.tsv's own location values (Item_Permanent_Shelving_Location/Item_Holding_Location, e.g. \"Reserves Overnight\", \"Stacks\", \"PBUB\") don't correspond to any real location in this tenant, so mapping them directly produced holdings that failed to load (a fabricated ref:location id that doesn't exist server-side). Requires bin/build-inventory's --config to resolve the real id.",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "temporaryLocationId",
+            "legacy_field": "Item_Temporary_Shelving_Location",
+            "value": "",
+            "description": "Temporary shelving location name (ref:location)  type: string pattern: UUID",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "callNumberTypeId",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Call number type name (ref:callNumberType)  type: string pattern: UUID  -- no source column in source_folio.tsv; fill in a literal value here if needed",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "callNumberPrefix",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Call number prefix  type: string  -- no separate prefix column in source_folio.tsv (only a single combined Item_Call_Number column)",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "callNumber",
+            "legacy_field": "Item_Call_Number",
+            "value": "",
+            "description": "Call number  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "callNumberSuffix",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Call number suffix  type: string  -- no separate suffix column in source_folio.tsv",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "statisticalCodeIds[0]",
+            "legacy_field": "Not mapped",
+            "value": "sourceFOLIO",
+            "description": "A universally unique identifier (UUID), this is a 128-bit number used to identify a record and is shown in hex with dashes, for example 6312d172-f0cf-40f6-b27d-9fa8feaf332f; the UUID version must be from 1-5; see https://dev.folio.org/guides/uuids/  type: string pattern: UUID  -- OR a statistical code's name instead of its UUID; either way it's applied to every holdings record. Add statisticalCodeIds[1], [2], etc. for more than one. A UUID is checked against the tenant's existing statistical codes; a name is looked up and replaced with its id. Anything not found is logged and dropped. Requires bin/build-inventory's --config to be set if any of these are filled in."
+        },
+        {
+            "folio_field": "sourceId",
+            "legacy_field": "Not mapped",
+            "value": "FOLIO",
+            "description": "(A reference to) the source of a holdings record  REQUIRED  type: string pattern: UUID  -- OR a holdings source's name instead of its UUID. Hard-coded to the tenant's real \"FOLIO\" holdings source for every holdings record (this tool creates brand-new holdings, not migrated from MARC). Requires bin/build-inventory's --config to resolve the real id."
+        }
+    ]
+}

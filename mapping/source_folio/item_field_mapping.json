@@ -1,0 +1,114 @@
+{
+    "data": [
+        {
+            "folio_field": "barcode",
+            "legacy_field": "Item_Barcode",
+            "value": "",
+            "description": "Unique inventory control number for physical resources  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "materialTypeId",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Material type name (ref:materialType)  REQUIRED  type: string pattern: UUID  -- left unmapped here on purpose: bin/build-inventory prompts for one value to use for every item if this stays blank (see --material-type)",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "permanentLoanTypeId",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Permanent loan type name (ref:loanType)  REQUIRED  type: string pattern: UUID  -- left unmapped here on purpose: bin/build-inventory prompts for one value to use for every item if this stays blank (see --loan-type)",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "circulationNotes[1].note",
+            "legacy_field": "LHR_Item_Public_Note",
+            "value": "",
+            "description": "Circulation note text  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "circulationNotes[1].noteType",
+            "legacy_field": "Not mapped",
+            "value": "Check out",
+            "description": "Type of circulation process the note applies to (Check in|Check out)  -- source_folio.tsv doesn't distinguish check-in vs. check-out notes; adjust this literal if that's wrong for your data  type: string enum: Check in,Check out",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "circulationNotes[1].staffOnly",
+            "legacy_field": "Not mapped",
+            "value": "false",
+            "description": "Flag to restrict display of this note  type: boolean",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "circulationNotes[2].note",
+            "legacy_field": "LHR_Item_Nonpublic_Note",
+            "value": "",
+            "description": "Circulation note text  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "circulationNotes[2].noteType",
+            "legacy_field": "Not mapped",
+            "value": "Check out",
+            "description": "Type of circulation process the note applies to (Check in|Check out)  -- same assumption as circulationNotes[1]  type: string enum: Check in,Check out",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "circulationNotes[2].staffOnly",
+            "legacy_field": "Not mapped",
+            "value": "true",
+            "description": "Flag to restrict display of this note  type: boolean",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "electronicAccess[1].uri",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "URI  Required if used  type: string  -- no source column in source_folio.tsv; the infrastructure is here for a source file that does carry URL data",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "electronicAccess[1].linkText",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Text to display in place of the URL  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "electronicAccess[1].materialsSpecification",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Materials specified  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "electronicAccess[1].publicNote",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Public note  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "electronicAccess[1].relationshipId",
+            "legacy_field": "Not mapped",
+            "value": "",
+            "description": "Relationship id  type: string",
+            "fallback_legacy_field": ""
+        },
+        {
+            "folio_field": "statisticalCodeIds[0]",
+            "legacy_field": "Not mapped",
+            "value": "sourceFOLIO",
+            "description": "A universally unique identifier (UUID), this is a 128-bit number used to identify a record and is shown in hex with dashes, for example 6312d172-f0cf-40f6-b27d-9fa8feaf332f; the UUID version must be from 1-5; see https://dev.folio.org/guides/uuids/  type: string pattern: UUID  -- OR a statistical code's name instead of its UUID; either way it's applied to every item. Add statisticalCodeIds[1], [2], etc. for more than one. A UUID is checked against the tenant's existing statistical codes; a name is looked up and replaced with its id. Anything not found is logged and dropped. Requires bin/build-inventory's --config to be set if any of these are filled in."
+        },
+        {
+            "folio_field": "status.name",
+            "legacy_field": "Not mapped",
+            "value": "Available",
+            "description": "REQUIRED Name of the status e.g. Available, Checked out, In transit  type: enum: Aged to lost|Available|Awaiting pickup|Awaiting delivery|Checked out|Claimed returned|Declared lost|In process|In process (non-requestable)|In transit|Intellectual item|Long missing|Lost and paid|Missing|On order|Paged|Restricted|Order closed|Unavailable|Unknown|Withdrawn  -- hard-coded to Available for every item. Item_Status_Current_Status column values (AVAILABLE/ON_HOLD/ON_LOAN) are source_folio.tsv's own circulation codes, not FOLIO's status enum, so no direct mapping is attempted."
+        }
+    ]
+}

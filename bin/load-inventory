@@ -1,0 +1,137 @@
+#!/usr/bin/env php
+<?php declare(strict_types=1);
+
+/**
+ * bin/load-inventory
+ *
+ * Loads the Instance/Holdings/Item JSON records built by
+ * `bin/build-inventory` into a live FOLIO tenant, via
+ * \phpFolioClient\FolioClient::upsert() (POST if the record's id doesn't
+ * exist yet, PUT if it does) against instance-storage, holdings-storage,
+ * and item-storage. Processes instances, then holdings, then items, in
+ * that order, since holdings reference an instanceId and items reference
+ * a holdingsRecordId that must already exist in the tenant.
+ *
+ * Every record type gets its own timestamped log file (see
+ * \SourceFolioRecords\Io\ErrorLog::defaultPathFor()) recording any record
+ * that failed to load and why; a summary line is also printed to stderr
+ * for each type. A record type with zero input records is skipped
+ * (still gets an empty summary log, so a run's outcome is always fully
+ * accounted for in logs/).
+ *
+ * Usage:
+ *   php bin/load-inventory --config=tenant.ini
+ *
+ * Options:
+ *   --config=PATH       INI file with FOLIO connection settings, per
+ *                        \phpFolioClient\FolioConfig (okapiUrl, tenant_id,
+ *                        username, password; sslVerify/timeout/debug/etc.
+ *                        optional). Required.
+ *   --input-dir=PATH     Directory holding instances.json/holdings.json/
+ *                        items.json, in the format `bin/build-inventory`
+ *                        writes (ndjson or a single JSON array; detected
+ *                        automatically). Default: output/ at the project
+ *                        root.
+ *   --logs-dir=PATH      Directory to write the per-type timestamped log
+ *                        files into (created if missing). Default: logs/
+ *                        at the project root.
+ *   --help               Show this message.
+ */
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use SourceFolioRecords\Cli\Options;
+use SourceFolioRecords\Io\ErrorLog;
+use SourceFolioRecords\Loading\InventoryFileReader;
+use SourceFolioRecords\Loading\InventoryLoader;
+use phpFolioClient\FolioAuth;
+use phpFolioClient\FolioClient;
+use phpFolioClient\FolioConfig;
+use phpFolioClient\FolioUtils;
+
+const PROJECT_ROOT = __DIR__ . '/..';
+
+/**
+ * Record type => FOLIO storage endpoint, in the order they must be
+ * loaded (instances before holdings before items).
+ */
+const RECORD_TYPES = [
+    'instances' => 'instance-storage/instances',
+    'holdings' => 'holdings-storage/holdings',
+    'items' => 'item-storage/items',
+];
+
+function printHelp(): void {
+    $source = file_get_contents(__FILE__);
+    if (preg_match('#/\*\*(.*?)\*/#s', (string) $source, $m)) {
+        foreach (explode("\n", $m[1]) as $line) {
+            echo ltrim(rtrim($line), " \t*") . "\n";
+        }
+    }
+}
+
+function main(array $argv): int {
+    $options = Options::parse($argv);
+
+    if (isset($options['help'])) {
+        printHelp();
+        return 0;
+    }
+    if (empty($options['config']) || !is_string($options['config'])) {
+        fwrite(STDERR, "Error: --config is required (path to an .ini file - see phpFolioClient's FolioConfig). Use --help for usage.\n");
+        return 1;
+    }
+
+    $inputDir = is_string($options['input-dir'] ?? null) ? rtrim($options['input-dir'], '/\\') : PROJECT_ROOT . '/output';
+    $logsDir = is_string($options['logs-dir'] ?? null) ? rtrim($options['logs-dir'], '/\\') : PROJECT_ROOT . '/logs';
+
+    try {
+        $config = new FolioConfig($options['config']);
+    } catch (\Throwable $e) {
+        fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        return 1;
+    }
+
+    $folioUtils = new FolioUtils();
+    $auth = new FolioAuth($config);
+    $client = new FolioClient($config, $auth, $folioUtils);
+    $loader = new InventoryLoader($client);
+
+    $hadErrors = false;
+
+    foreach (RECORD_TYPES as $recordType => $endpoint) {
+        $path = "$inputDir/$recordType.json";
+        $records = InventoryFileReader::read($path);
+
+        $errorLogPath = ErrorLog::defaultPathFor($path, $logsDir);
+        $errorLog = new ErrorLog($errorLogPath);
+        $errorLog->open();
+        $errorLog->write('Run started ' . date('Y-m-d H:i:s'));
+        $errorLog->write("Record type: $recordType");
+        $errorLog->write("Endpoint: $endpoint");
+        $errorLog->write('Input: ' . $path . ' (' . count($records) . ' record(s))');
+        $errorLog->write('');
+
+        [$succeeded, $failed] = $loader->loadRecordType($recordType, $endpoint, $records, $errorLog);
+        if ($failed > 0) {
+            $hadErrors = true;
+        }
+
+        $errorLog->write('');
+        $errorLog->write("Loaded $succeeded of " . count($records) . " $recordType record(s); $failed failed.");
+        $errorLog->close();
+
+        fwrite(STDERR, sprintf(
+            "%s: loaded %d of %d record(s); %d failed. Log: %s\n",
+            $recordType,
+            $succeeded,
+            count($records),
+            $failed,
+            $errorLogPath
+        ));
+    }
+
+    return $hadErrors ? 1 : 0;
+}
+
+exit(main($argv));

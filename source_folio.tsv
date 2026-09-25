@@ -1,0 +1,104 @@
+Institution_Symbol	Item_Holding_Location	Item_Permanent_Shelving_Location	Item_Temporary_Shelving_Location	Item_Type	Item_Call_Number	Item_Enumeration_and_Chronology	Author_Name	Title	LHR_Item_Materials_Specified	Material_Format	OCLC_Number	Title_ISBN	Publication_Date	Item_Barcode	LHR_Item_Cost	LHR_Item_Nonpublic_Note	LHR_Item_Public_Note	Item_Status_Current_Status	Item_Due_Date	Item_Issued_Count	Issued_Count_YTD	Item_Soft_Issued_Count	Item_Soft_Issued_Count_YTD	Item_Last_Issued_Date	Item_Last_Inventoried_Date	Item_Deleted_Date	LHR_Date_Entered_on_File	LHR_Item_Acquired_Date	Language_Code	LHR_Item_Call_Number_Normalized
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED			Ned Ladd, Michele Thornley	Lab Packet for ASTR 102: Stars, Galaxies, and Beyond		otr	0			89001006101184				AVAILABLE		1	0	0	0	2014-09-22					otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED			Ned Ladd ; Michele Thornley	Lab Packet for ASTR 102: Stars, Galaxies, and Beyond		otr	0			89001006101192				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	Computing / Interpreting Computation		otr	0			89001006159810				AVAILABLE		1	0	0	0	2014-08-27					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 2		otr	0			89001006159828				AVAILABLE		13	0	0	0	2014-09-18					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 3		otr	0			89001006159836				AVAILABLE		4	0	0	0	2014-09-18					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 5		otr	0			89001006159844				AVAILABLE		12	0	0	0	2014-09-24					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 4		otr	0			89001006159851				AVAILABLE		13	0	0	0	2014-09-19					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 6		otr	0			89001006159869				AVAILABLE		6	0	0	0	2014-09-19					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 7		otr	0			89001006159877				AVAILABLE		9	0	0	0	2014-09-19					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 8		otr	0			89001006159885				AVAILABLE		7	0	0	0	2014-09-18					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 9		otr	0			89001006159893				AVAILABLE		13	0	0	0	2014-09-18					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185 - 01/02: Computing / Interpreting Computation, Packet 10		otr	0			89001006159901				AVAILABLE		9	0	0	0	2014-09-19					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185-01/02 Computing / Interpreting Computation, Packet 1		otr	0			89001006159984				AVAILABLE		24	0	0	0	2014-09-18					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Gary Haggard	CSCI 185-01/02  Computing/Interpreting Computation		otr	0			89001006159992				AVAILABLE		1	0	0	0	2014-08-27					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Calculus: Early Transcendentals		Book	0			89001006447629				AVAILABLE		12	5	0	0	2026-04-16					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				IR: Seeking Security, Prosperity, and the Quality of Life in a Changing World		Book	0			89001006447710				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Hide/Seek		Book	0			89001006448031				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Queer Abstraction		Book	0			89001006448049				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Art and Queer Culture		Book	0			89001006448056				AVAILABLE		1	0	0	0	2025-04-26					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Queer Threads		Book	0			89001006448064				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Harmony Hammond	Lesbian Art in America		Book	0			89001006448072				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood and Higher Education		Book	0			89001006448122				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood and Higher Education		Book	0			89001006448130				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood and Higher Education		Book	0			89001006448148				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood and Higher Education		Book	0			89001006448155				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Cynthia Kaufman	Ideas for Action: Relevant Theory for Radical Change		Book	0			89001006448163				AVAILABLE		3	0	0	0	2025-09-21					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Barbara Ehrenreich	Nickel and Dimed: On (not) Getting by in America		Book	0			89001006448171				AVAILABLE		1	0	0	0	2025-09-21					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Schooling for Critical Consciousness		Book	0			89001006448197				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Why are all the Black Kids Sitting Together in the Cafeteria?		Book	0			89001006448205				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Deconstructing Race		Book	0			89001006448213				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Listening to People		Book	0			89001006448221				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Behavioral Neurobiology		Book	0			89001006448239				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Behavioral Neurobiology		Book	0			89001006448247				AVAILABLE		8	0	0	0	2025-12-10					otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Suena		Book	0			89001006448254				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Chen Qiufan	Waste Tide		Book	0			89001006448262				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Chen Qiufan	Waste Tide		Book	0			89001006448270				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Virginia Eubanks	Automating Inequality		Book	0			89001006448288				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Virginia Eubanks	Automating Inequality		Book	0			89001006448296				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Thomas King	Borders		Book	0			89001006448304				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Thomas King	Borders		Book	0			89001006448312				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				The Real Cost of Prisons		Book	0			89001006448320				AVAILABLE		1	0	0	0	2025-10-15					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				The Real Cost of Prisons		Book	0			89001006448338				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				This Book is Anti-racist		Book	0			89001006448346				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			TiffanyJewell	This Book is Anti-racist		Book	0			89001006448353				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Flying Kites		Book	0			89001006448361				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Flying Kites		Book	0			89001006448379				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Karen Hao	Empire of AI		Book	0			89001006448387				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Karen Hao	Empire of AI		Book	0			89001006448395				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Imagination: A Manifesto		Book	0			89001006448403				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Imagination: A Manifesto		Book	0			89001006448411				AVAILABLE		1	0	0	0	2025-09-29					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Victory. Stand!		Book	0			89001006448429				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				Victory. Stand!		Book	0			89001006448437				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				We Do This 'Til We Free Us		Book	0			89001006448445				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				We Do This 'Til We Free Us		Book	0			89001006448452				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Meredith Broussard	Artificial Unintelligence: How Computers Misunderstand the World		Book	0			89001006448460				AVAILABLE		2	1	0	0	2026-01-07					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Robin Wall Kimmerer	The Serviceberry		Book	0			89001006448478				AVAILABLE		1	0	0	0	2025-09-10					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				IR: Seeking Security, Prosperity, and Quality of Life in a Changing world		Book	0			89001006448486				AVAILABLE		2	0	0	0	2025-11-07					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Mas		Book	0			89001006448627				AVAILABLE		1	1	0	0	2026-02-18					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Kai Erikson	Wayward Puritans		Book	0			89001006448650				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Kai Erikson	Wayward Puritans		Book	0			89001006448668				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Kai Erikson	Wayward Puritans		Book	0			89001006448676				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Kai Erikson	Wayward Puritans		Book	0			89001006448684				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Profesionales de los Negocios curso de espanol		Book	0			89001006448692				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Profesionales de la Salud curso de espanol		Book	0			89001006448700				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood in Higher Education		Book	0			89001006448718				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood in Higher Education		Book	0			89001006448726				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood in Higher Education		Book	0			89001006448734				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Emerging Adulthood in Highr Education		Book	0			89001006448742				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Cynthia Kaufman	Ideas for Action: Relevant Theory for Radical Change		Book	0			89001006448759				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Barbara Ehrenreich	Nickel and Dimed: On (not) Getting by in America		Book	0			89001006448767				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Economic Principles and Problems		Book	0			89001006448775				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Economic Principles and Problems		Book	0			89001006448783				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Economic Principles and Problems		Book	0			89001006448791				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Economic Principles and Problems		Book	0			89001006448809				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Economic Principles and Problems		Book	0			89001006448817				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Democracy, Race and Justice		Book	0			89001006448825				AVAILABLE		1	1	0	0	2026-08-31					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Gerard Cachon	Operations Management		Book	0			89001006448833				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED			Gerard Cachon	Operations Management		Book	0			89001006448841				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				They Say I say		Book	0			89001006448858				AVAILABLE		1	1	0	0	2026-09-02					otr	
+PBU	PBUB	Reserves 4-hours		CIRC_MANAGED				PHYS 211 : Additional Problems and Supplementary Reading		Book	0			89001006461174				AVAILABLE		8	0	0	0	2024-09-22					otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Calculus: Early Transcendentals		Book	0			89001006461448				AVAILABLE		89	7	0	0	2026-08-26					otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED			Rosen Kenneth H.	Discrete Mathematics and Its Applications		Book	0			89001006461992				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED			Braun, Anna	XR Development with Unity		Book	0			89001006462008				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Creating Augmented and Virtual Realities: Theory and Practice for Next-Generation Spatial Computing		Book	0			89001006462016				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED			Schell, Jesse	The Art of Game Design: A Book of Lenses		Book	0			89001006462024				AVAILABLE		1	0	0	0	2024-12-12					otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED			Gronseth, Susie	Universal Access Through Inclusive Instructional Design		Book	0			89001006462032				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Social Media Marketing All-in-One for Dummies		Book	0			89001006462040				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED			Tobin, Thomas J.	Reach Everyone, Teach Everyone		Book	0			89001006462057				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED			Mealy, Paul	Virtual and Augmented Reality for Dummies		Book	0			89001006462065				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves 3-hours		CIRC_MANAGED				Traditions and Encounters: A Global Perspective on the Past		Book	0			89001006462099				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Reserves Overnight		CIRC_MANAGED				Phys 211: Additional Problems and Supplementary Reading		Book	0			89001006462107				AVAILABLE		16	0	0	0	2023-10-19					otr	
+PBU	PBUB	Stacks		CIRC_MANAGED			Wolfson, Richard	Essential University Physics		Book	0			89001006462115				AVAILABLE		9	0	0	0	2023-12-07					otr	
+PBU	PBUB	Stacks		CIRC_MANAGED			Natalie Babbitt	Tuck Everlasting		Book	0			9780374480134				AVAILABLE		2	0	0	0	2020-07-27					otr	
+PBU	PBUB	Stacks		CIRC_MANAGED			Jules Chametsky	From the Ghetto		Archv	0			From the Ghetto				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Stacks		CIRC_MANAGED						otr	0							AVAILABLE		2	0	0	0	2014-01-22					otr	
+PBU	PBUB	Migration		CIRC_MANAGED			Clear, James	Atomic habits : tiny changes, remarkable results : an easy & proven way to build good habits & break bad ones /		otr	0			PLEB-3				AVAILABLE		1	0	0	0	2023-08-21					otr	
+PBU	PBUB	Migration		CIRC_MANAGED				Critical directions in comics studies /		otr	0			PLEB-4				AVAILABLE		1	0	0	0	2023-08-21					otr	
+PBU	PBUB	Migration		CIRC_MANAGED				ReShare Test - PALCITEST		otr	0			PLEB-6				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Migration		CIRC_MANAGED				ReShare Test - PALCITEST		otr	0			PLEB-7				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	Migration		CIRC_MANAGED			test	ReShare Test - PALCITEST		otr	0			PLEB-8				AVAILABLE		0	0	0	0						otr	
+PBU	PBUB	16MM-Films		CIRC_MANAGED				A Chorus Line		Archv	0			pleb-1056				AVAILABLE		1	0	0	0	2025-11-17					otr	
+PBU	PBUB	16MM-Films		CIRC_MANAGED				The Forgetten Network		Archv	0			pleb-90				AVAILABLE		1	0	0	0	2024-09-06					otr	
+PBU	PBUB	16MM-Films		CIRC_MANAGED				SPINNING FATES AND THE SONG OF THE LOOM		Archv	0			plex-873				AVAILABLE		1	0	0	0	2025-09-09					otr	
