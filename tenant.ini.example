@@ -1,0 +1,19 @@
+; FOLIO tenant connection settings for bin/build-inventory --config and
+; bin/load-inventory --config — see \phpFolioClient\FolioConfig.
+;
+; Fill in real values below before using either script against a live
+; tenant. Never commit this file once it holds real credentials — only a
+; blank/placeholder version like this one belongs in version control.
+
+okapiUrl = "https://your-okapi-or-gateway-url"
+tenant_id = "your_tenant_id"
+username = "your_username"
+password = "your_password"
+
+; Optional settings (defaults shown):
+; central_tenant_id =
+; sslVerify = true
+; debug = false
+; timeout = 30
+; localTimeZone = "America/Chicago"
+; name = ""

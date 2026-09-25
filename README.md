@@ -26,7 +26,11 @@ bash install.sh [target-dir]   # target-dir defaults to ./create_source_folio_re
 ```
 
 Then use `php <target-dir>/bin/build-inventory ...` / `bin/load-inventory ...`
-exactly as described below.
+exactly as described below. If `target-dir` had no `tenant.ini`, a blank
+`tenant.ini.example` template is installed as `tenant.ini` — fill in your
+tenant's real `okapiUrl`/`tenant_id`/`username`/`password` before using
+`--config` with either script; a `tenant.ini` that already exists is never
+overwritten.
 
 **To update an existing install**, run the exact same command again with the
 same `target-dir` — there's no git remote left in `target-dir` to `pull`

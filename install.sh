@@ -15,7 +15,10 @@ set -euo pipefail
 # README.md are replaced wholesale with the latest versions (so a
 # file removed or renamed upstream doesn't linger), then
 # `composer install --no-dev` is re-run to match. tenant.ini, output/,
-# and logs/ are never touched either way.
+# and logs/ are never touched either way. If target-dir has no
+# tenant.ini yet (a fresh install, or an update where one was never
+# created), tenant.ini.example is installed as tenant.ini, ready to
+# fill in with real values — an existing tenant.ini is never replaced.
 #
 # Usage:
 #   bash install.sh [target-dir]
@@ -56,6 +59,13 @@ cp "$TMP_CLONE"/composer.json "$TARGET_DIR"/
 cp "$TMP_CLONE"/composer.lock "$TARGET_DIR"/
 cp "$TMP_CLONE"/README.md "$TARGET_DIR"/
 
+if [ ! -e "$TARGET_DIR"/tenant.ini ]; then
+    cp "$TMP_CLONE"/tenant.ini.example "$TARGET_DIR"/tenant.ini
+    NEW_TENANT_INI=1
+else
+    NEW_TENANT_INI=0
+fi
+
 echo "Installing dependencies..."
 (cd "$TARGET_DIR" && composer install --no-dev --quiet)
 chmod +x "$TARGET_DIR"/bin/*
@@ -68,3 +78,8 @@ else
 fi
 echo "  php $TARGET_DIR/bin/build-inventory --help"
 echo "  php $TARGET_DIR/bin/load-inventory --help"
+if [ "$NEW_TENANT_INI" -eq 1 ]; then
+    echo ""
+    echo "A blank $TARGET_DIR/tenant.ini was installed - fill in your tenant's real"
+    echo "okapiUrl/tenant_id/username/password before using --config with either script."
+fi
