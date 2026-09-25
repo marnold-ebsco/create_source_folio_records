@@ -110,6 +110,21 @@ php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \
     --config=tenant.ini --resource-type=text
 ```
 
+`--test` forces `materialTypeId` and `permanentLocationId` to the literal
+name "Migration" for every row — ignoring the row's own column data and
+each field's configured fallback — resolved via a live lookup against the
+tenant (so `--config` is required) same as any other `live:` field. Meant
+for exercising a build against a real tenant before its real location/
+material type reference data has been loaded yet: as long as the tenant
+already has a material type and a location each literally named
+"Migration", every record resolves against those instead of needing every
+real value up front.
+
+```bash
+php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \
+    --config=tenant.ini --resource-type=text --test
+```
+
 Output (default `output/instances.json`, `output/holdings.json`,
 `output/items.json`, one JSON object per line) and a run log under `logs/`
 recording any validation errors (e.g. a row missing a required field).

@@ -72,6 +72,17 @@
  * rather than only failing per-row once that fallback is needed — see
  * checkLiveFallbacksExist().
  *
+ * `--test` forces `materialTypeId` and `permanentLocationId` to the
+ * literal name "Migration" for every row, ignoring both the row's own
+ * column data and each field's configured `fallback_value` — then
+ * resolves that name the normal way, via a live lookup against the
+ * tenant's real material types/locations (so `--config` is required
+ * when `--test` is given). Meant for testing a build against a real
+ * tenant before its real location/material type reference data has been
+ * loaded yet: as long as the tenant has a material type and a location
+ * each literally named "Migration" already, every record resolves
+ * against those rather than needing every real value up front.
+ *
  * See \SourceFolioRecords\RecordBuilder, \SourceFolioRecords\Mapping\FieldMapper,
  * \SourceFolioRecords\Io\DelimitedFileReader, \SourceFolioRecords\Io\ErrorLog,
  * and the schema classes under \SourceFolioRecords\Schema for the field
@@ -109,7 +120,15 @@
  *                             fallback.
  *   --loan-type=NAME          Literal permanent loan type name for every
  *                             item's permanentLoanTypeId, overriding the
- *                             Migration fallback.
+ *                             Can circulate fallback.
+ *   --test                    Force materialTypeId and permanentLocationId
+ *                             to the literal name "Migration" for every
+ *                             row, resolved via a live lookup against the
+ *                             tenant (requires --config) instead of each
+ *                             row's own column data or configured
+ *                             fallback — for testing a build against a
+ *                             real tenant before its real location/
+ *                             material type reference data is loaded.
  *   --config=PATH             INI file with FOLIO connection settings, per
  *                             \phpFolioClient\FolioConfig (okapiUrl,
  *                             tenant_id, username, password; sslVerify/
@@ -585,6 +604,12 @@ function main(array $argv): int {
     $loanTypeOption = is_string($options['loan-type'] ?? null) ? $options['loan-type'] : '';
     if ($loanTypeOption !== '') {
         $itemMapper->setLiteral('permanentLoanTypeId', $loanTypeOption);
+    }
+
+    $testMode = isset($options['test']);
+    if ($testMode) {
+        $itemMapper->setLiteral('materialTypeId', 'Migration');
+        $holdingsMapper->setLiteral('permanentLocationId', 'Migration');
     }
 
     try {
