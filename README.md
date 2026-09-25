@@ -73,7 +73,10 @@ in this order:
 1. A CLI option: `--resource-type=NAME`, `--material-type=NAME`, `--loan-type=NAME`.
 2. A literal `value` already filled into the relevant file under the chosen
    `--mapping-dir`.
-3. An interactive prompt (asked once per run, reused for every record).
+3. For `instanceTypeId` only: if `--config` was given, the tenant's own
+   instance types are checked for one literally named `text` — if found,
+   that's used automatically instead of prompting.
+4. An interactive prompt (asked once per run, reused for every record).
 
 ```bash
 php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \

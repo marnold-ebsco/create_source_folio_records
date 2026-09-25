@@ -50,6 +50,9 @@
  * type`/`--material-type`/`--loan-type` CLI option; a literal `value`
  * already filled into the relevant mapping file; or, if neither is
  * given, an interactive prompt (once per run, reused for every record).
+ * `instanceTypeId` gets one extra check before that prompt: if `--config`
+ * was given and the tenant already has an instance type named `text`,
+ * that's used instead of asking — see resolveResourceTypeLiteral().
  *
  * See \SourceFolioRecords\RecordBuilder, \SourceFolioRecords\Mapping\FieldMapper,
  * \SourceFolioRecords\Io\DelimitedFileReader, \SourceFolioRecords\Io\ErrorLog,
@@ -212,6 +215,62 @@ function promptForLiteralIfUnmapped(FieldMapper $mapper, string $field, string $
     $answer = trim((string) fgets(STDIN));
     if ($answer !== '') {
         $mapper->setLiteral($field, $answer);
+    }
+}
+
+/**
+ * Whether the tenant (via `--config`) already has an instance type
+ * literally named `$name` (case-insensitive) — a standalone lookup, not
+ * one of {@see buildLiveResolvers()}'s resolvers, since this needs to run
+ * *before* that function's own "is instanceTypeId mapped yet" check (a
+ * literal set here would otherwise make it look pre-mapped). Returns
+ * `false` (never throws) if `--config` wasn't given or the lookup fails,
+ * so the caller falls back to prompting instead.
+ */
+function tenantHasInstanceTypeNamed(string $configOption, string $name): bool {
+    if ($configOption === '') {
+        return false;
+    }
+    try {
+        $config = new FolioConfig($configOption);
+        $client = new FolioClient($config, new FolioAuth($config), new FolioUtils());
+        $namesById = fetchNamesById($client, 'instance-types');
+    } catch (\Throwable $e) {
+        return false;
+    }
+    foreach ($namesById as $existingName) {
+        if (strcasecmp($existingName, $name) === 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Same job as {@see promptForLiteralIfUnmapped()} for `instanceTypeId`
+ * specifically, but with an extra check in between: if the tenant already
+ * has an instance type named `text` (FOLIO's usual default for textual
+ * resources), use it instead of prompting — the tenant can answer this
+ * one itself, so don't ask the person running the script something FOLIO
+ * already knows. Only applies when `--config` was given; otherwise there's
+ * no tenant to check, and this falls straight through to the prompt.
+ */
+function resolveResourceTypeLiteral(FieldMapper $mapper, string $cliOptionValue, string $configOption): void {
+    if ($cliOptionValue !== '') {
+        $mapper->setLiteral('instanceTypeId', $cliOptionValue);
+        return;
+    }
+    if ($mapper->isMapped('instanceTypeId')) {
+        return;
+    }
+    if (tenantHasInstanceTypeNamed($configOption, 'text')) {
+        $mapper->setLiteral('instanceTypeId', 'text');
+        return;
+    }
+    fwrite(STDERR, 'Enter the resource type to use for every instance: ');
+    $answer = trim((string) fgets(STDIN));
+    if ($answer !== '') {
+        $mapper->setLiteral('instanceTypeId', $answer);
     }
 }
 
@@ -436,11 +495,12 @@ function main(array $argv): int {
         return 1;
     }
 
-    promptForLiteralIfUnmapped(
+    $configOption = is_string($options['config'] ?? null) ? $options['config'] : '';
+
+    resolveResourceTypeLiteral(
         $instanceMapper,
-        'instanceTypeId',
         is_string($options['resource-type'] ?? null) ? $options['resource-type'] : '',
-        'Enter the resource type to use for every instance'
+        $configOption
     );
     promptForLiteralIfUnmapped(
         $itemMapper,
@@ -460,7 +520,7 @@ function main(array $argv): int {
             $instanceMapper,
             $holdingsMapper,
             $itemMapper,
-            is_string($options['config'] ?? null) ? $options['config'] : ''
+            $configOption
         );
     } catch (\Throwable $e) {
         fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
