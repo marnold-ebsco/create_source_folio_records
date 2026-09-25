@@ -60,7 +60,8 @@
  *   php bin/build-inventory --input=ezborrow.tsv [options]
  *
  * Options:
- *   --input=PATH             Delimited input file (required).
+ *   --input=PATH             Delimited input file. If omitted, prompted
+ *                             for interactively.
  *   --mapping-dir=PATH        Directory holding instance_field_mapping.json,
  *                             holdings_field_mapping.json, and
  *                             item_field_mapping.json (default: mapping/
@@ -320,7 +321,12 @@ function main(array $argv): int {
         printHelp();
         return 0;
     }
-    if (empty($options['input']) || !is_string($options['input'])) {
+    $inputPath = is_string($options['input'] ?? null) ? $options['input'] : '';
+    if ($inputPath === '') {
+        fwrite(STDERR, 'Enter the path to the delimited input file: ');
+        $inputPath = trim((string) fgets(STDIN));
+    }
+    if ($inputPath === '') {
         fwrite(STDERR, "Error: --input is required. Use --help for usage.\n");
         return 1;
     }
@@ -339,11 +345,11 @@ function main(array $argv): int {
 
     $errorLogPath = is_string($options['error-log'] ?? null)
         ? $options['error-log']
-        : ErrorLog::defaultPathFor($options['input'], PROJECT_ROOT . '/logs');
+        : ErrorLog::defaultPathFor($inputPath, PROJECT_ROOT . '/logs');
     $errorLog = new ErrorLog($errorLogPath);
     $errorLog->open();
     $errorLog->write('Run started ' . date('Y-m-d H:i:s'));
-    $errorLog->write("Input: {$options['input']}");
+    $errorLog->write("Input: $inputPath");
     $errorLog->write('');
 
     $caster = new ValueCaster();
@@ -394,7 +400,7 @@ function main(array $argv): int {
     $holdingsBuilder = new RecordBuilder($holdingsMapper, $caster, $folioUtils, HoldingsSchema::class, $listDelimiter, $registry, $statisticalCodes, $holdingsSources, $locations, $liveReferences);
     $itemBuilder = new RecordBuilder($itemMapper, $caster, $folioUtils, ItemSchema::class, $listDelimiter, $registry, $statisticalCodes, null, null, $liveReferences);
 
-    $reader = new DelimitedFileReader($options['input'], $delimiter, $enclosure);
+    $reader = new DelimitedFileReader($inputPath, $delimiter, $enclosure);
     try {
         $reader->open();
     } catch (\RuntimeException $e) {
