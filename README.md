@@ -234,6 +234,13 @@ holdingsRecordId that must already exist.
 php bin/load-inventory --config=tenant.ini
 ```
 
+If `--config` is omitted and at least one `*.ini` file exists at the
+project root, you're prompted to pick one, same as `bin/build-inventory`.
+If `--input-dir` is omitted, you're prompted to pick which of
+`bin/build-inventory`'s own per-run output subdirectories (under
+`output/`) to load, listed most recent first, rather than needing to type
+its path.
+
 `tenant.ini` holds FOLIO connection settings per `phpFolioClient`'s
 `FolioConfig` (`okapiUrl`, `tenant_id`, `username`, `password`; `sslVerify`,
 `timeout`, `debug`, etc. are optional) — never commit a filled-in one, only a

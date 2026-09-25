@@ -26,12 +26,19 @@
  *   --config=PATH       INI file with FOLIO connection settings, per
  *                        \phpFolioClient\FolioConfig (okapiUrl, tenant_id,
  *                        username, password; sslVerify/timeout/debug/etc.
- *                        optional). Required.
+ *                        optional). If omitted and any *.ini file exists
+ *                        at the project root, you're prompted to pick one
+ *                        (see \SourceFolioRecords\Cli\ConfigFile::promptFor())
+ *                        rather than having to type its path.
  *   --input-dir=PATH     Directory holding instances.json/holdings.json/
  *                        items.json, in the format `bin/build-inventory`
  *                        writes (ndjson or a single JSON array; detected
- *                        automatically). Default: output/ at the project
- *                        root.
+ *                        automatically) — one of its own per-run
+ *                        subdirectories of output/, unless it was given
+ *                        a fixed `--output-dir` at build time. If
+ *                        omitted, you're prompted to pick one (lists
+ *                        every subdirectory of output/ at the project
+ *                        root, most recent first).
  *   --logs-dir=PATH      Directory to write the per-type timestamped log
  *                        files into (created if missing). Default: logs/
  *                        at the project root.
@@ -40,6 +47,7 @@
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use SourceFolioRecords\Cli\ConfigFile;
 use SourceFolioRecords\Cli\Options;
 use SourceFolioRecords\Io\ErrorLog;
 use SourceFolioRecords\Loading\InventoryFileReader;
@@ -61,6 +69,60 @@ const RECORD_TYPES = [
     'items' => 'item-storage/items',
 ];
 
+/**
+ * List every immediate subdirectory of `$outputRootDir` — each expected
+ * to be one `bin/build-inventory` run's own output (see its default
+ * `--output-dir` naming) — most-recently-created first (the run token's
+ * timestamp prefix sorts lexically, so a plain descending name sort
+ * already puts the newest run first).
+ *
+ * @return Subdirectory names (not full paths); empty if `$outputRootDir`
+ *         doesn't exist or has no subdirectories.
+ */
+function listOutputDirs(string $outputRootDir): array {
+    if (!is_dir($outputRootDir)) {
+        return [];
+    }
+    $names = [];
+    foreach (scandir($outputRootDir) ?: [] as $entry) {
+        if ($entry !== '.' && $entry !== '..' && is_dir("$outputRootDir/$entry")) {
+            $names[] = $entry;
+        }
+    }
+    rsort($names);
+    return $names;
+}
+
+/**
+ * Prompt for which build output (subdirectory of `$outputRootDir`) to
+ * load, when `--input-dir` wasn't given.
+ *
+ * @return The chosen output directory's full path.
+ * @throws \RuntimeException If `$outputRootDir` has no subdirectories to
+ *                     choose from, or the typed answer matches none of them.
+ */
+function promptForInputDir(string $outputRootDir): string {
+    $dirs = listOutputDirs($outputRootDir);
+    if ($dirs === []) {
+        throw new \RuntimeException("no output subdirectories found under '$outputRootDir' - run bin/build-inventory first, or pass --input-dir");
+    }
+
+    fwrite(STDERR, "Which build output should be loaded (most recent first)?\n");
+    foreach ($dirs as $i => $name) {
+        fwrite(STDERR, '  ' . ($i + 1) . ") $name\n");
+    }
+    fwrite(STDERR, 'Enter a number, or just the name above (not a path): ');
+    $answer = trim((string) fgets(STDIN));
+
+    if (ctype_digit($answer) && isset($dirs[((int) $answer) - 1])) {
+        return "$outputRootDir/{$dirs[((int) $answer) - 1]}";
+    }
+    if (in_array($answer, $dirs, true)) {
+        return "$outputRootDir/$answer";
+    }
+    throw new \RuntimeException("'$answer' does not match any output subdirectory under '$outputRootDir'");
+}
+
 function printHelp(): void {
     $source = file_get_contents(__FILE__);
     if (preg_match('#/\*\*(.*?)\*/#s', (string) $source, $m)) {
@@ -77,16 +139,30 @@ function main(array $argv): int {
         printHelp();
         return 0;
     }
-    if (empty($options['config']) || !is_string($options['config'])) {
+
+    if (is_string($options['input-dir'] ?? null)) {
+        $inputDir = rtrim($options['input-dir'], '/\\');
+    } else {
+        try {
+            $inputDir = promptForInputDir(PROJECT_ROOT . '/output');
+        } catch (\Throwable $e) {
+            fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+            return 1;
+        }
+    }
+    $logsDir = is_string($options['logs-dir'] ?? null) ? rtrim($options['logs-dir'], '/\\') : PROJECT_ROOT . '/logs';
+
+    $configOption = is_string($options['config'] ?? null) ? $options['config'] : '';
+    if ($configOption === '') {
+        $configOption = ConfigFile::promptFor(PROJECT_ROOT);
+    }
+    if ($configOption === '') {
         fwrite(STDERR, "Error: --config is required (path to an .ini file - see phpFolioClient's FolioConfig). Use --help for usage.\n");
         return 1;
     }
 
-    $inputDir = is_string($options['input-dir'] ?? null) ? rtrim($options['input-dir'], '/\\') : PROJECT_ROOT . '/output';
-    $logsDir = is_string($options['logs-dir'] ?? null) ? rtrim($options['logs-dir'], '/\\') : PROJECT_ROOT . '/logs';
-
     try {
-        $config = new FolioConfig($options['config']);
+        $config = new FolioConfig($configOption);
     } catch (\Throwable $e) {
         fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
         return 1;
