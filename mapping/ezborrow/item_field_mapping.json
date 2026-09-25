@@ -9,17 +9,19 @@
         },
         {
             "folio_field": "materialTypeId",
-            "legacy_field": "Not mapped",
+            "legacy_field": "Material_Format",
             "value": "",
-            "description": "Material type name (ref:materialType)  REQUIRED  type: string pattern: UUID  -- left unmapped here on purpose: bin/build-inventory prompts for one value to use for every item if this stays blank (see --material-type)",
-            "fallback_legacy_field": ""
+            "description": "Material type name or id (live:materialType)  REQUIRED  type: string pattern: UUID  -- uses the row's Material_Format column; if that's blank for a row, falls back to the literal 'Migration' (fallback_value) instead of prompting. bin/build-inventory quits before processing any rows if the tenant has no material type named 'Migration'.",
+            "fallback_legacy_field": "",
+            "fallback_value": "Migration"
         },
         {
             "folio_field": "permanentLoanTypeId",
             "legacy_field": "Not mapped",
             "value": "",
-            "description": "Permanent loan type name (ref:loanType)  REQUIRED  type: string pattern: UUID  -- left unmapped here on purpose: bin/build-inventory prompts for one value to use for every item if this stays blank (see --loan-type)",
-            "fallback_legacy_field": ""
+            "description": "Permanent loan type name or id (live:loanType)  REQUIRED  type: string pattern: UUID  -- no source column in ezborrow.tsv, so this always falls back to the literal 'Migration' (fallback_value) instead of prompting. bin/build-inventory quits before processing any rows if the tenant has no loan type named 'Migration'.",
+            "fallback_legacy_field": "",
+            "fallback_value": "Migration"
         },
         {
             "folio_field": "circulationNotes[1].note",

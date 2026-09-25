@@ -44,15 +44,25 @@
  * resolve is logged as a warning instead and does *not* skip anything
  * — see \SourceFolioRecords\RowValidation.
  *
- * `instanceTypeId` (Instance), `materialTypeId` and `permanentLoanTypeId`
- * (Item) are all required fields with no source column in ezborrow.tsv.
- * Each can be supplied three ways, checked in this order: a `--resource-
- * type`/`--material-type`/`--loan-type` CLI option; a literal `value`
- * already filled into the relevant mapping file; or, if neither is
- * given, an interactive prompt (once per run, reused for every record).
- * `instanceTypeId` gets one extra check before that prompt: if `--config`
- * was given and the tenant already has an instance type named `text`,
- * that's used instead of asking — see resolveResourceTypeLiteral().
+ * `instanceTypeId` (Instance) is a required field with no source column
+ * in ezborrow.tsv. It can be supplied three ways, checked in this order:
+ * a `--resource-type` CLI option; a literal `value` already filled into
+ * the mapping file; or, if neither is given, a check of whether the
+ * tenant (via `--config`) already has an instance type named `text` —
+ * used automatically if so, rather than prompting — falling back to an
+ * interactive prompt (once per run, reused for every record) only if
+ * none of that applies. See resolveResourceTypeLiteral().
+ *
+ * `materialTypeId` and `permanentLoanTypeId` (Item), and
+ * `permanentLocationId` (Holdings), never prompt: each uses the row's own
+ * mapped column(s) (`Material_Format`; none;
+ * `Item_Permanent_Shelving_Location`/`Item_Holding_Location`), falling
+ * back to the literal `Migration` (`--material-type`/`--loan-type` CLI
+ * options can still override the whole field) whenever a row's own value
+ * is blank — see each mapping file's `fallback_value`. If the tenant (via
+ * `--config`) has no material type, loan type, or location actually named
+ * `Migration`, the whole run quits immediately rather than only failing
+ * per-row once that fallback is needed — see checkMigrationFallbackExists().
  *
  * See \SourceFolioRecords\RecordBuilder, \SourceFolioRecords\Mapping\FieldMapper,
  * \SourceFolioRecords\Io\DelimitedFileReader, \SourceFolioRecords\Io\ErrorLog,
@@ -83,12 +93,15 @@
  *   --list-delimiter=STR      Delimiter used *within* a single cell for
  *                             multi-value fields (default: |).
  *   --resource-type=NAME      Literal resource type name for every instance's
- *                             instanceTypeId — skips the interactive prompt.
+ *                             instanceTypeId — skips the tenant check and
+ *                             the interactive prompt.
  *   --material-type=NAME      Literal material type name for every item's
- *                             materialTypeId — skips the interactive prompt.
+ *                             materialTypeId, overriding the row's own
+ *                             Material_Format column and the Migration
+ *                             fallback.
  *   --loan-type=NAME          Literal permanent loan type name for every
- *                             item's permanentLoanTypeId — skips the
- *                             interactive prompt.
+ *                             item's permanentLoanTypeId, overriding the
+ *                             Migration fallback.
  *   --config=PATH             INI file with FOLIO connection settings, per
  *                             \phpFolioClient\FolioConfig (okapiUrl,
  *                             tenant_id, username, password; sslVerify/
@@ -426,6 +439,40 @@ function buildLiveResolvers(FieldMapper $instanceMapper, FieldMapper $holdingsMa
     return [$statisticalCodes, $holdingsSources, $locations, $liveReferences];
 }
 
+/**
+ * Verify the tenant actually has a 'Migration' material type, loan type,
+ * and location — the shared literal `fallback_value` used by
+ * `materialTypeId`, `permanentLoanTypeId` (Item), and `permanentLocationId`
+ * (Holdings) whenever a row's own column data is blank (see the mapping
+ * files). Checked once, right after {@see buildLiveResolvers()}, so a
+ * tenant missing 'Migration' quits the whole run immediately instead of
+ * only surfacing as a per-row validation error on whichever rows happen
+ * to need the fallback. Each of the three is only checked if its field is
+ * actually mapped (so a mapping file that removes the fallback entirely
+ * isn't held to this).
+ *
+ * @return One message per problem found; empty if none.
+ */
+function checkMigrationFallbackExists(FieldMapper $itemMapper, FieldMapper $holdingsMapper, LocationResolver $locations, array $liveReferences): array {
+    $problems = [];
+    if ($itemMapper->isMapped('materialTypeId')) {
+        $materialTypes = $liveReferences['materialType'] ?? LiveReferenceResolver::empty();
+        if ($materialTypes->idForName('Migration') === null) {
+            $problems[] = "the tenant has no material type named 'Migration' (the fallback used when a row's own material type is blank).";
+        }
+    }
+    if ($itemMapper->isMapped('permanentLoanTypeId')) {
+        $loanTypes = $liveReferences['loanType'] ?? LiveReferenceResolver::empty();
+        if ($loanTypes->idForName('Migration') === null) {
+            $problems[] = "the tenant has no loan type named 'Migration' (the fallback used when a row's own loan type is blank).";
+        }
+    }
+    if ($holdingsMapper->isMapped('permanentLocationId') && $locations->idForName('Migration') === null) {
+        $problems[] = "the tenant has no location named 'Migration' (the fallback used when a row's own shelving location is blank).";
+    }
+    return $problems;
+}
+
 function printHelp(): void {
     $source = file_get_contents(__FILE__);
     if (preg_match('#/\*\*(.*?)\*/#s', (string) $source, $m)) {
@@ -502,18 +549,14 @@ function main(array $argv): int {
         is_string($options['resource-type'] ?? null) ? $options['resource-type'] : '',
         $configOption
     );
-    promptForLiteralIfUnmapped(
-        $itemMapper,
-        'materialTypeId',
-        is_string($options['material-type'] ?? null) ? $options['material-type'] : '',
-        'Enter the material type to use for every item'
-    );
-    promptForLiteralIfUnmapped(
-        $itemMapper,
-        'permanentLoanTypeId',
-        is_string($options['loan-type'] ?? null) ? $options['loan-type'] : '',
-        'Enter the permanent loan type to use for every item'
-    );
+    $materialTypeOption = is_string($options['material-type'] ?? null) ? $options['material-type'] : '';
+    if ($materialTypeOption !== '') {
+        $itemMapper->setLiteral('materialTypeId', $materialTypeOption);
+    }
+    $loanTypeOption = is_string($options['loan-type'] ?? null) ? $options['loan-type'] : '';
+    if ($loanTypeOption !== '') {
+        $itemMapper->setLiteral('permanentLoanTypeId', $loanTypeOption);
+    }
 
     try {
         [$statisticalCodes, $holdingsSources, $locations, $liveReferences] = buildLiveResolvers(
@@ -524,6 +567,14 @@ function main(array $argv): int {
         );
     } catch (\Throwable $e) {
         fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        return 1;
+    }
+
+    $migrationProblems = checkMigrationFallbackExists($itemMapper, $holdingsMapper, $locations, $liveReferences);
+    if ($migrationProblems !== []) {
+        foreach ($migrationProblems as $problem) {
+            fwrite(STDERR, "Error: $problem\n");
+        }
         return 1;
     }
 

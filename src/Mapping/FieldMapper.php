@@ -29,7 +29,10 @@ use RuntimeException;
  *      and non-empty.
  *   3. Otherwise, the row's `fallback_legacy_field` column is used, if
  *      present and non-empty.
- *   4. Otherwise the field resolves to null (not present in this row).
+ *   4. Otherwise, a non-empty "fallback_value" is used verbatim, if the
+ *      entry has one — unlike "value", this only applies when neither
+ *      column produced anything, rather than overriding them.
+ *   5. Otherwise the field resolves to null (not present in this row).
  * "legacy_field"/"fallback_legacy_field" of "" or "Not mapped" are
  * treated as absent. Column name matching is case-insensitive.
  *
@@ -127,17 +130,22 @@ final class FieldMapper {
             }
         }
 
+        if (isset($entry['fallback_value']) && (string) $entry['fallback_value'] !== '') {
+            return (string) $entry['fallback_value'];
+        }
+
         return null;
     }
 
     /**
      * Whether a field already has a usable mapping — a non-empty literal
-     * `value`, or a `legacy_field`/`fallback_legacy_field` other than
-     * `""`/`"Not mapped"` — independent of whether any particular row
-     * actually has data in that column. Used to decide whether a
-     * required reference field needs to be prompted for (see
-     * `bin/build-inventory`'s `promptForLiteralIfUnmapped()`) rather than
-     * to resolve an actual value.
+     * `value`, a non-empty `fallback_value`, or a `legacy_field`/
+     * `fallback_legacy_field` other than `""`/`"Not mapped"` —
+     * independent of whether any particular row actually has data in
+     * that column. Used to decide whether a required reference field
+     * needs to be prompted for (see `bin/build-inventory`'s
+     * `promptForLiteralIfUnmapped()`) rather than to resolve an actual
+     * value.
      *
      * @param $folioField Same notation as {@see resolve()}.
      */
@@ -154,6 +162,9 @@ final class FieldMapper {
             if ($columnName !== '' && strcasecmp($columnName, 'Not mapped') !== 0) {
                 return true;
             }
+        }
+        if (isset($entry['fallback_value']) && (string) $entry['fallback_value'] !== '') {
+            return true;
         }
         return false;
     }

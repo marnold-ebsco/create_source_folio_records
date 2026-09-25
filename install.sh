@@ -4,16 +4,16 @@ set -euo pipefail
 # install.sh
 #
 # Fetches a runtime-only copy of source-folio-records (bin/, src/,
-# mapping/, composer files, README — no tests/, no sample .tsv fixtures,
-# no git history) into target-dir, then runs `composer install --no-dev`
-# there. Lets you use bin/build-inventory and bin/load-inventory
-# anywhere without manually cloning
+# mapping/, composer files, README, update.sh — no tests/, no sample
+# .tsv fixtures, no git history) into target-dir, then runs
+# `composer install --no-dev` there. Lets you use bin/build-inventory
+# and bin/load-inventory anywhere without manually cloning
 # https://github.com/marnold-ebsco/create_source_folio_records every time.
 #
 # If target-dir already exists, this updates it in place instead of
-# doing a fresh install: bin/, src/, mapping/, composer.json/lock, and
-# README.md are replaced wholesale with the latest versions (so a
-# file removed or renamed upstream doesn't linger), then
+# doing a fresh install: bin/, src/, mapping/, composer.json/lock,
+# README.md, and update.sh are replaced wholesale with the latest
+# versions (so a file removed or renamed upstream doesn't linger), then
 # `composer install --no-dev` is re-run to match. tenant.ini, output/,
 # and logs/ are never touched either way. If target-dir has no
 # tenant.ini yet (a fresh install, or an update where one was never
@@ -23,7 +23,10 @@ set -euo pipefail
 # Usage:
 #   bash install.sh [target-dir]
 #
-# target-dir defaults to ./create_source_folio_records if omitted.
+# target-dir defaults to ./create_source_folio_records if omitted. Once
+# installed, update.sh (copied into target-dir) can update it in place
+# from inside that directory — see update.sh's own docblock — instead of
+# re-running this command with target-dir spelled out again.
 
 REPO_SSH_URL="git@github.com:marnold-ebsco/create_source_folio_records.git"
 TARGET_DIR="${1:-./create_source_folio_records}"
@@ -58,6 +61,8 @@ cp -r "$TMP_CLONE"/mapping "$TARGET_DIR"/
 cp "$TMP_CLONE"/composer.json "$TARGET_DIR"/
 cp "$TMP_CLONE"/composer.lock "$TARGET_DIR"/
 cp "$TMP_CLONE"/README.md "$TARGET_DIR"/
+cp "$TMP_CLONE"/update.sh "$TARGET_DIR"/
+chmod +x "$TARGET_DIR"/update.sh
 
 if [ ! -e "$TARGET_DIR"/tenant.ini ]; then
     cp "$TMP_CLONE"/tenant.ini.example "$TARGET_DIR"/tenant.ini

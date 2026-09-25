@@ -32,12 +32,20 @@ tenant's real `okapiUrl`/`tenant_id`/`username`/`password` before using
 `--config` with either script; a `tenant.ini` that already exists is never
 overwritten.
 
-**To update an existing install**, run the exact same command again with the
-same `target-dir` — there's no git remote left in `target-dir` to `pull`
-from, so this is how you pick up changes instead. `bin/`, `src/`, `mapping/`,
-and the composer files are replaced wholesale with the latest versions (so a
-file removed or renamed upstream doesn't linger); `tenant.ini`, `output/`,
-and `logs/` are left untouched either way.
+**To update an existing install**, either re-run the exact same command again
+with the same `target-dir` — there's no git remote left in `target-dir` to
+`pull` from, so this is how you pick up changes instead — or, more simply,
+run the `update.sh` that's already sitting inside `target-dir` (installed
+there for exactly this), from inside that directory:
+
+```bash
+bash update.sh
+```
+
+Either way, `bin/`, `src/`, `mapping/`, the composer files, and `update.sh`
+itself are replaced wholesale with the latest versions (so a file removed or
+renamed upstream doesn't linger); `tenant.ini`, `output/`, and `logs/` are
+left untouched either way.
 
 ### Option 2: developing this project
 
@@ -66,21 +74,34 @@ than silently defaulting to any one of them, since building the wrong source
 file against the wrong mapping set (e.g. tagging `source_folio.tsv` records
 with `ezborrow`'s statistical code) fails silently rather than erroring.
 
-`instanceTypeId` (Instance), `materialTypeId`, and `permanentLoanTypeId` (Item)
-are required fields with no source column in `ezborrow.tsv`. Each is resolved,
-in this order:
+`instanceTypeId` (Instance) is a required field with no source column in
+`ezborrow.tsv`, resolved in this order:
 
-1. A CLI option: `--resource-type=NAME`, `--material-type=NAME`, `--loan-type=NAME`.
-2. A literal `value` already filled into the relevant file under the chosen
-   `--mapping-dir`.
-3. For `instanceTypeId` only: if `--config` was given, the tenant's own
-   instance types are checked for one literally named `text` — if found,
-   that's used automatically instead of prompting.
+1. A CLI option: `--resource-type=NAME`.
+2. A literal `value` already filled into `instance_field_mapping.json` under
+   the chosen `--mapping-dir`.
+3. If `--config` was given, the tenant's own instance types are checked for
+   one literally named `text` — if found, that's used automatically instead
+   of prompting.
 4. An interactive prompt (asked once per run, reused for every record).
+
+`materialTypeId`/`permanentLoanTypeId` (Item) and `permanentLocationId`
+(Holdings) never prompt: each uses whatever's mapped in the relevant file
+under the chosen `--mapping-dir` — `materialTypeId` from `Material_Format`,
+`permanentLocationId` from `Item_Permanent_Shelving_Location` falling back to
+`Item_Holding_Location` — falling back further to the literal `Migration`
+(each mapping file's `fallback_value`, see [Mapping files](#mapping-files)
+below) whenever a row leaves them blank. `--material-type=NAME`/
+`--loan-type=NAME` can still override the whole field, same as
+`--resource-type`. If the tenant has no material type, loan type, or
+location actually named `Migration`, the run quits immediately (with
+`--config` required in the first place, since resolving any of these needs a
+live tenant lookup) rather than only failing once a row actually needs that
+fallback.
 
 ```bash
 php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \
-    --resource-type=text --material-type=book --loan-type="Can circulate"
+    --config=tenant.ini --resource-type=text
 ```
 
 Output (default `output/instances.json`, `output/holdings.json`,
@@ -134,12 +155,15 @@ the same format as `folio-migration-mapper`'s `create_map`/`verify_map` tools:
 
 For a given `folio_field`: a non-empty `value` is used verbatim for every row;
 otherwise the row's `legacy_field` column is used if present and non-empty;
-otherwise `fallback_legacy_field`; otherwise the field is left out of that
-row's record. A repeatable group (e.g. a second identifier) uses `[N]`
-bracket notation before the dot, e.g. `identifiers[2].value` (1-based). A
-repeatable *scalar* field has no subfields, so no dot — just the bracketed
-key on its own, e.g. `statisticalCodeIds[0]` (this one starts at 0; see
-below).
+otherwise `fallback_legacy_field`; otherwise a non-empty `fallback_value` is
+used verbatim (unlike `value`, this only kicks in when neither column had
+anything for that row — e.g. `materialTypeId`'s `Material_Format` column
+falling back to a literal `Migration` only on rows that leave it blank);
+otherwise the field is left out of that row's record. A repeatable group
+(e.g. a second identifier) uses `[N]` bracket notation before the dot, e.g.
+`identifiers[2].value` (1-based). A repeatable *scalar* field has no
+subfields, so no dot — just the bracketed key on its own, e.g.
+`statisticalCodeIds[0]` (this one starts at 0; see below).
 
 Only the fields actually requested for this project are included — see each
 `src/Schema/*.php` class for the full list each record type supports here.

@@ -2,10 +2,11 @@
     "data": [
         {
             "folio_field": "permanentLocationId",
-            "legacy_field": "Not mapped",
-            "value": "Migration",
-            "description": "Permanent shelving location name (live:location)  REQUIRED  type: string pattern: UUID  -- OR a location's name instead of its UUID. Hard-coded to the tenant's real \"Migration\" location for every holdings record: source_folio.tsv's own location values (Item_Permanent_Shelving_Location/Item_Holding_Location, e.g. \"Reserves Overnight\", \"Stacks\", \"PBUB\") don't correspond to any real location in this tenant, so mapping them directly produced holdings that failed to load (a fabricated ref:location id that doesn't exist server-side). Requires bin/build-inventory's --config to resolve the real id.",
-            "fallback_legacy_field": ""
+            "legacy_field": "Item_Permanent_Shelving_Location",
+            "value": "",
+            "description": "Permanent shelving location name or id (live:location)  REQUIRED  type: string pattern: UUID  -- uses the row's Item_Permanent_Shelving_Location column, falling back to Item_Holding_Location if that's blank, then to the literal 'Migration' (fallback_value) if both are blank. bin/build-inventory quits before processing any rows if the tenant has no location named 'Migration'.",
+            "fallback_legacy_field": "Item_Holding_Location",
+            "fallback_value": "Migration"
         },
         {
             "folio_field": "temporaryLocationId",
