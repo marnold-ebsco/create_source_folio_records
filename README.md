@@ -125,9 +125,14 @@ php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \
     --config=tenant.ini --resource-type=text --test
 ```
 
-Output (default `output/instances.json`, `output/holdings.json`,
-`output/items.json`, one JSON object per line) and a run log under `logs/`
-recording any validation errors (e.g. a row missing a required field).
+Output (`instances.json`, `holdings.json`, `items.json`, one JSON object
+per line) is written into its own fresh subdirectory of `output/`, named
+after the input file plus a timestamp — e.g.
+`output/ezborrow_20260925_154212_9c3ada/` — so each run's output is kept
+separate rather than overwriting the last run's files; use `--output-dir`
+to pick a fixed directory instead. A run log with the same name is written
+under `logs/`, recording any validation errors (e.g. a row missing a
+required field).
 
 ### Instance/Holdings grouping
 

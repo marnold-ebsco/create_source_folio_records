@@ -19,18 +19,43 @@ final class ErrorLog {
     }
 
     /**
-     * Build a fresh, collision-resistant default log path for one run,
-     * named after the input file so multiple inputs' logs are easy to
-     * tell apart.
+     * A fresh, collision-resistant token identifying one run, named after
+     * the input file so multiple inputs' logs/output directories are easy
+     * to tell apart — e.g. `ezborrow_20260925_154212_9c3ada`. Shared by
+     * {@see defaultPathFor()} and `bin/build-inventory`'s default output
+     * directory naming, so a run's log file and output directory carry
+     * the same token when neither `--error-log` nor `--output-dir` was
+     * given explicitly.
+     *
+     * @param $inputPath Path of the file being imported.
+     */
+    public static function runToken(string $inputPath): string {
+        $base = pathinfo($inputPath, PATHINFO_FILENAME);
+        $timestamp = date('Ymd_His');
+        $unique = bin2hex(random_bytes(3));
+        return "{$base}_{$timestamp}_{$unique}";
+    }
+
+    /**
+     * A log file path for a given run token (see {@see runToken()}) under
+     * `$logsDir`.
+     */
+    public static function pathFor(string $logsDir, string $token): string {
+        return rtrim($logsDir, '/\\') . "/$token.log";
+    }
+
+    /**
+     * Build a fresh, collision-resistant default log path for one run —
+     * see {@see runToken()}. Generates its own token; use {@see runToken()}
+     * plus {@see pathFor()} directly instead when the same token also
+     * needs to name something else (e.g. `bin/build-inventory`'s default
+     * output directory).
      *
      * @param $inputPath Path of the file being imported.
      * @param $logsDir   Directory the log file should live in.
      */
     public static function defaultPathFor(string $inputPath, string $logsDir): string {
-        $base = pathinfo($inputPath, PATHINFO_FILENAME);
-        $timestamp = date('Ymd_His');
-        $unique = bin2hex(random_bytes(3));
-        return rtrim($logsDir, '/\\') . "/{$base}_{$timestamp}_{$unique}.log";
+        return self::pathFor($logsDir, self::runToken($inputPath));
     }
 
     /**

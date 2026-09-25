@@ -101,8 +101,14 @@
  *                             for interactively (lists every subfolder
  *                             under mapping/ at the project root).
  *   --output-dir=PATH         Directory to write instances.json/holdings.json/
- *                             items.json (default: output/ at the project
- *                             root; created if missing).
+ *                             items.json (created if missing). Default: a
+ *                             fresh subdirectory of output/ at the project
+ *                             root, named after the input file plus a
+ *                             timestamp (e.g. output/ezborrow_20260925_
+ *                             154212_9c3ada/) so each run's output is kept
+ *                             separate rather than overwriting the last
+ *                             run's files — matching the run's default
+ *                             error log's own name under logs/.
  *   --format=json|ndjson      Output format for all three files (default:
  *                             ndjson — one JSON object per line; "json"
  *                             writes a single JSON array per file instead).
@@ -554,7 +560,10 @@ function main(array $argv): int {
             return 1;
         }
     }
-    $outputDir = is_string($options['output-dir'] ?? null) ? rtrim($options['output-dir'], '/\\') : PROJECT_ROOT . '/output';
+    $runToken = ErrorLog::runToken($inputPath);
+    $outputDir = is_string($options['output-dir'] ?? null)
+        ? rtrim($options['output-dir'], '/\\')
+        : PROJECT_ROOT . '/output/' . $runToken;
     $format = is_string($options['format'] ?? null) ? $options['format'] : 'ndjson';
     $delimiter = Options::resolveDelimiter(is_string($options['delimiter'] ?? null) ? $options['delimiter'] : "\t");
     $enclosure = is_string($options['enclosure'] ?? null) ? $options['enclosure'] : '"';
@@ -567,7 +576,7 @@ function main(array $argv): int {
 
     $errorLogPath = is_string($options['error-log'] ?? null)
         ? $options['error-log']
-        : ErrorLog::defaultPathFor($inputPath, PROJECT_ROOT . '/logs');
+        : ErrorLog::pathFor(PROJECT_ROOT . '/logs', $runToken);
     $errorLog = new ErrorLog($errorLogPath);
     $errorLog->open();
     $errorLog->write('Run started ' . date('Y-m-d H:i:s'));
