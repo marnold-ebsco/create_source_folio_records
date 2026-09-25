@@ -44,19 +44,29 @@ real data — see [Tests](#tests) below.
 ## Usage
 
 ```bash
-php bin/build-inventory --input=ezborrow.tsv
+php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow
 ```
+
+If `--input` is omitted, you're prompted for the input file path
+interactively. Every source file has its own subfolder under `mapping/`
+(e.g. `mapping/ezborrow/`, `mapping/source_folio/` — see
+[Mapping files](#mapping-files) below); if `--mapping-dir` is omitted, you're
+prompted to pick one from whatever subfolders exist under `mapping/` rather
+than silently defaulting to any one of them, since building the wrong source
+file against the wrong mapping set (e.g. tagging `source_folio.tsv` records
+with `ezborrow`'s statistical code) fails silently rather than erroring.
 
 `instanceTypeId` (Instance), `materialTypeId`, and `permanentLoanTypeId` (Item)
 are required fields with no source column in `ezborrow.tsv`. Each is resolved,
 in this order:
 
 1. A CLI option: `--resource-type=NAME`, `--material-type=NAME`, `--loan-type=NAME`.
-2. A literal `value` already filled into the relevant file under `mapping/`.
+2. A literal `value` already filled into the relevant file under the chosen
+   `--mapping-dir`.
 3. An interactive prompt (asked once per run, reused for every record).
 
 ```bash
-php bin/build-inventory --input=ezborrow.tsv \
+php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \
     --resource-type=text --material-type=book --loan-type="Can circulate"
 ```
 
@@ -88,9 +98,12 @@ php bin/build-inventory --help
 
 ## Mapping files
 
-`mapping/instance_field_mapping.json`, `mapping/holdings_field_mapping.json`,
-and `mapping/item_field_mapping.json` use the same format as
-`folio-migration-mapper`'s `create_map`/`verify_map` tools:
+Each source file gets its own subfolder under `mapping/` — `mapping/ezborrow/`
+for `ezborrow.tsv`, `mapping/source_folio/` for `source_folio.tsv` — containing
+`instance_field_mapping.json`, `holdings_field_mapping.json`, and
+`item_field_mapping.json`. Point `--mapping-dir` at the one matching your
+`--input`, or leave it off to be prompted for which subfolder to use. They use
+the same format as `folio-migration-mapper`'s `create_map`/`verify_map` tools:
 
 ```json
 {

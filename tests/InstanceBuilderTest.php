@@ -14,7 +14,7 @@ use phpFolioClient\FolioUtils;
 
 /**
  * Exercises {@see RecordBuilder} configured for {@see InstanceSchema}
- * against the actual mapping/instance_field_mapping.json shipped at the
+ * against the actual mapping/ezborrow/instance_field_mapping.json shipped at the
  * project root, using the same lowercased-header row shape
  * \SourceFolioRecords\Io\DelimitedFileReader produces from ezborrow.tsv —
  * so these tests double as a check that the bundled mapping file and the
@@ -23,7 +23,7 @@ use phpFolioClient\FolioUtils;
 final class InstanceBuilderTest extends TestCase {
     /**
      * The mapping file bakes in a literal `statisticalCodeIds[0]` of
-     * `EZBorrow` (see mapping/instance_field_mapping.json) — this
+     * `EZBorrow` (see mapping/ezborrow/instance_field_mapping.json) — this
      * resolver stands in for the tenant's real statistical codes so
      * that literal resolves cleanly instead of logging a "not found"
      * warning on every test.
@@ -47,7 +47,7 @@ final class InstanceBuilderTest extends TestCase {
     private array $liveReferences;
 
     protected function setUp(): void {
-        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/instance_field_mapping.json');
+        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/ezborrow/instance_field_mapping.json');
         $this->registry = new ReferenceRegistry();
         $this->statisticalCodes = new StatisticalCodeResolver([self::EZBORROW_STAT_CODE_ID => 'EZBorrow']);
         $this->liveReferences = [
@@ -75,7 +75,7 @@ final class InstanceBuilderTest extends TestCase {
     }
 
     public function testBuildsFullInstanceOnceInstanceTypeIdIsMapped(): void {
-        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/instance_field_mapping.json');
+        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/ezborrow/instance_field_mapping.json');
         $mapper->setLiteral('instanceTypeId', 'text');
         $builder = new RecordBuilder($mapper, new ValueCaster(), new FolioUtils(), InstanceSchema::class, '|', $this->registry, $this->statisticalCodes, null, null, $this->liveReferences);
 
@@ -104,7 +104,7 @@ final class InstanceBuilderTest extends TestCase {
     }
 
     public function testIssnInstanceIsOmittedWhenNoIssnColumnIsMapped(): void {
-        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/instance_field_mapping.json');
+        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/ezborrow/instance_field_mapping.json');
         $mapper->setLiteral('instanceTypeId', 'text');
         $builder = new RecordBuilder($mapper, new ValueCaster(), new FolioUtils(), InstanceSchema::class, '|', $this->registry, $this->statisticalCodes, null, null, $this->liveReferences);
 

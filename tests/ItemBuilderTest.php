@@ -15,7 +15,7 @@ use phpFolioClient\FolioUtils;
 final class ItemBuilderTest extends TestCase {
     /**
      * The mapping file bakes in a literal `statisticalCodeIds[0]` of
-     * `EZBorrow` (see mapping/item_field_mapping.json) — this resolver
+     * `EZBorrow` (see mapping/ezborrow/item_field_mapping.json) — this resolver
      * stands in for the tenant's real statistical codes so that literal
      * resolves cleanly instead of logging a "not found" warning on
      * every test.
@@ -35,7 +35,7 @@ final class ItemBuilderTest extends TestCase {
     private array $liveReferences;
 
     private function builderWithLiterals(): RecordBuilder {
-        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/item_field_mapping.json');
+        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/ezborrow/item_field_mapping.json');
         $mapper->setLiteral('materialTypeId', 'book');
         $mapper->setLiteral('permanentLoanTypeId', 'Can circulate');
         return new RecordBuilder($mapper, new ValueCaster(), new FolioUtils(), ItemSchema::class, '|', $this->registry, $this->statisticalCodes, null, null, $this->liveReferences);
@@ -57,7 +57,7 @@ final class ItemBuilderTest extends TestCase {
     }
 
     public function testMaterialTypeAndLoanTypeAreRequired(): void {
-        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/item_field_mapping.json');
+        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/ezborrow/item_field_mapping.json');
         $builder = new RecordBuilder($mapper, new ValueCaster(), new FolioUtils(), ItemSchema::class, '|', $this->registry, $this->statisticalCodes);
 
         [, $errors] = $this->build($builder, ['item_barcode' => 'PLEB-1249']);

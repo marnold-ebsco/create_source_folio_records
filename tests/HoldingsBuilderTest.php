@@ -16,7 +16,7 @@ use phpFolioClient\FolioUtils;
 final class HoldingsBuilderTest extends TestCase {
     /**
      * The mapping file bakes in a literal `statisticalCodeIds[0]` of
-     * `EZBorrow` (see mapping/holdings_field_mapping.json) — this
+     * `EZBorrow` (see mapping/ezborrow/holdings_field_mapping.json) — this
      * resolver stands in for the tenant's real statistical codes so
      * that literal resolves cleanly instead of logging a "not found"
      * warning on every test.
@@ -25,7 +25,7 @@ final class HoldingsBuilderTest extends TestCase {
 
     /**
      * The mapping file also bakes in a literal `sourceId` of `FOLIO`
-     * (see mapping/holdings_field_mapping.json) — this resolver stands
+     * (see mapping/ezborrow/holdings_field_mapping.json) — this resolver stands
      * in for the tenant's real holdings sources so that literal
      * resolves cleanly instead of failing every test with a missing
      * required field.
@@ -34,7 +34,7 @@ final class HoldingsBuilderTest extends TestCase {
 
     /**
      * The mapping file also bakes in a literal `permanentLocationId` of
-     * `Migration` (see mapping/holdings_field_mapping.json) — this
+     * `Migration` (see mapping/ezborrow/holdings_field_mapping.json) — this
      * resolver stands in for the tenant's real locations so that
      * literal resolves cleanly instead of failing every test with a
      * missing required field.
@@ -45,7 +45,7 @@ final class HoldingsBuilderTest extends TestCase {
     private ReferenceRegistry $registry;
 
     protected function setUp(): void {
-        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/holdings_field_mapping.json');
+        $mapper = FieldMapper::fromFile(dirname(__DIR__) . '/mapping/ezborrow/holdings_field_mapping.json');
         $this->registry = new ReferenceRegistry();
         $statisticalCodes = new StatisticalCodeResolver([self::EZBORROW_STAT_CODE_ID => 'EZBorrow']);
         $holdingsSources = new HoldingsSourceResolver([self::FOLIO_SOURCE_ID => 'FOLIO']);
