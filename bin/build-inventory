@@ -295,8 +295,11 @@ function promptForLiteralIfUnmapped(FieldMapper $mapper, string $field, string $
  * one of {@see buildLiveResolvers()}'s resolvers, since this needs to run
  * *before* that function's own "is instanceTypeId mapped yet" check (a
  * literal set here would otherwise make it look pre-mapped). Returns
- * `false` (never throws) if `--config` wasn't given or the lookup fails,
- * so the caller falls back to prompting instead.
+ * `false` if `--config` wasn't given or the lookup fails, so the caller
+ * falls back to prompting instead — but a failed lookup (bad
+ * credentials, wrong tenant_id, unreachable okapiUrl, etc.) is printed to
+ * stderr rather than silently swallowed, since a silent `false` here is
+ * indistinguishable from "checked fine, tenant genuinely has no `$name`".
  */
 function tenantHasInstanceTypeNamed(string $configOption, string $name): bool {
     if ($configOption === '') {
@@ -307,6 +310,7 @@ function tenantHasInstanceTypeNamed(string $configOption, string $name): bool {
         $client = new FolioClient($config, new FolioAuth($config), new FolioUtils());
         $namesById = fetchNamesById($client, 'instance-types');
     } catch (\Throwable $e) {
+        fwrite(STDERR, "Warning: couldn't check '$configOption' for an instance type named '$name': " . $e->getMessage() . "\n");
         return false;
     }
     foreach ($namesById as $existingName) {
