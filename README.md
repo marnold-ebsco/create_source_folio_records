@@ -74,16 +74,22 @@ than silently defaulting to any one of them, since building the wrong source
 file against the wrong mapping set (e.g. tagging `source_folio.tsv` records
 with `ezborrow`'s statistical code) fails silently rather than erroring.
 
+If `--config` is omitted and at least one `*.ini` file exists at the project
+root (e.g. `tenant.ini`), you're prompted to pick one to use as `--config`
+rather than needing to type its path — `tenant.ini.example` is never offered,
+since its filename doesn't end in `.ini`.
+
 `instanceTypeId` (Instance) is a required field with no source column in
 `ezborrow.tsv`, resolved in this order:
 
 1. A CLI option: `--resource-type=NAME`.
 2. A literal `value` already filled into `instance_field_mapping.json` under
    the chosen `--mapping-dir`.
-3. If `--config` was given, the tenant's own instance types are checked for
-   one literally named `text` — if found, that's used automatically instead
-   of prompting.
-4. An interactive prompt (asked once per run, reused for every record).
+3. The tenant's own instance types (via `--config`, or the `.ini` prompt
+   above) are checked for one literally named `text` — if found, that's used
+   automatically for every instance instead of prompting.
+4. An interactive prompt (asked once per run, reused for every record) —
+   only reached if no config was available to check with.
 
 `materialTypeId`/`permanentLoanTypeId` (Item) and `permanentLocationId`
 (Holdings) never prompt: each uses whatever's mapped in the relevant file

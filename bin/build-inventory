@@ -48,10 +48,14 @@
  * in ezborrow.tsv. It can be supplied three ways, checked in this order:
  * a `--resource-type` CLI option; a literal `value` already filled into
  * the mapping file; or, if neither is given, a check of whether the
- * tenant (via `--config`) already has an instance type named `text` —
- * used automatically if so, rather than prompting — falling back to an
- * interactive prompt (once per run, reused for every record) only if
- * none of that applies. See resolveResourceTypeLiteral().
+ * tenant already has an instance type named `text` — used automatically
+ * if so, rather than prompting — falling back to an interactive prompt
+ * (once per run, reused for every record) only if none of that applies.
+ * That tenant check needs `--config`; if it's omitted but a *.ini file
+ * exists at the project root, you're prompted to pick one to use as
+ * `--config` (see promptForConfigFile()) before this runs, so `text`
+ * actually gets the chance to resolve instead of falling straight to the
+ * prompt for lack of a config. See resolveResourceTypeLiteral().
  *
  * `materialTypeId` and `permanentLoanTypeId` (Item), and
  * `permanentLocationId` (Holdings), never prompt: each uses the row's own
@@ -105,15 +109,20 @@
  *   --config=PATH             INI file with FOLIO connection settings, per
  *                             \phpFolioClient\FolioConfig (okapiUrl,
  *                             tenant_id, username, password; sslVerify/
- *                             timeout/debug/etc. optional). Required if a
- *                             mapping file's `statisticalCodeIds` entry
- *                             has a literal `value` filled in, and/or the
- *                             holdings mapping's `sourceId` does (true by
- *                             default) — used for read-only lookups to
- *                             verify each configured id/name against the
- *                             tenant's real reference data (see
- *                             \SourceFolioRecords\StatisticalCodeResolver
- *                             and \SourceFolioRecords\HoldingsSourceResolver).
+ *                             timeout/debug/etc. optional). If omitted and
+ *                             any *.ini file exists at the project root,
+ *                             you're prompted to pick one (see
+ *                             promptForConfigFile()) rather than having to
+ *                             type its path. Required (one way or the
+ *                             other) if a mapping file's
+ *                             `statisticalCodeIds` entry has a literal
+ *                             `value` filled in, and/or any `live:`
+ *                             reference field does (`sourceId`,
+ *                             `permanentLocationId`, `materialTypeId`,
+ *                             `permanentLoanTypeId`, etc. — see each
+ *                             Schema class) — used for read-only lookups
+ *                             to verify each configured id/name against
+ *                             the tenant's real reference data.
  *   --error-log=PATH          Validation log for this run (default: a
  *                             fresh, timestamped file under logs/ at the
  *                             project root, created automatically).
@@ -205,6 +214,55 @@ function promptForMappingDir(string $mappingRootDir): string {
         return "$mappingRootDir/$answer";
     }
     throw new \RuntimeException("'$answer' does not match any mapping set under '$mappingRootDir'");
+}
+
+/**
+ * List every `*.ini` file directly under `$dir`, sorted by name — used to
+ * offer a choice of FOLIO connection config when `--config` wasn't given,
+ * rather than requiring its path to be typed out. A `*.ini.example`
+ * template (see `tenant.ini.example`) never matches, since its filename
+ * doesn't end in `.ini`.
+ */
+function listIniFiles(string $dir): array {
+    $files = glob(rtrim($dir, '/\\') . '/*.ini') ?: [];
+    sort($files);
+    return $files;
+}
+
+/**
+ * Prompt for which `.ini` file under `$dir` to use as `--config`, when
+ * `--config` wasn't given — lets a `tenant.ini`-style connection file be
+ * picked interactively instead of typed out in full, and lets
+ * `instanceTypeId` actually get the chance to auto-resolve to the
+ * tenant's `text` instance type (see {@see resolveResourceTypeLiteral()})
+ * instead of falling through to its own prompt for lack of a config.
+ *
+ * @return The chosen file's path, or `''` if `$dir` has no `.ini` files,
+ *         or the user declines every option offered.
+ */
+function promptForConfigFile(string $dir): string {
+    $files = listIniFiles($dir);
+    if ($files === []) {
+        return '';
+    }
+    if (count($files) === 1) {
+        fwrite(STDERR, "Use '" . basename($files[0]) . "' as the FOLIO connection config? [Y/n]: ");
+        $answer = trim((string) fgets(STDIN));
+        return ($answer === '' || strcasecmp($answer, 'y') === 0) ? $files[0] : '';
+    }
+
+    fwrite(STDERR, "Which FOLIO connection config file should be used?\n");
+    foreach ($files as $i => $file) {
+        fwrite(STDERR, '  ' . ($i + 1) . ') ' . basename($file) . "\n");
+    }
+    fwrite(STDERR, '  ' . (count($files) + 1) . ") None\n");
+    fwrite(STDERR, 'Enter a number: ');
+    $answer = trim((string) fgets(STDIN));
+
+    if (ctype_digit($answer) && isset($files[((int) $answer) - 1])) {
+        return $files[((int) $answer) - 1];
+    }
+    return '';
 }
 
 /**
@@ -543,6 +601,9 @@ function main(array $argv): int {
     }
 
     $configOption = is_string($options['config'] ?? null) ? $options['config'] : '';
+    if ($configOption === '') {
+        $configOption = promptForConfigFile(PROJECT_ROOT);
+    }
 
     resolveResourceTypeLiteral(
         $instanceMapper,
