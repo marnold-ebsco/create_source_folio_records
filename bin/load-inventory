@@ -12,10 +12,11 @@
  * that order, since holdings reference an instanceId and items reference
  * a holdingsRecordId that must already exist in the tenant.
  *
- * Every record type gets its own timestamped log file (see
- * \SourceFolioRecords\Io\ErrorLog::defaultPathFor()) recording any record
- * that failed to load and why; a summary line is also printed to stderr
- * for each type. A record type with zero input records is skipped
+ * Every record type gets its own timestamped log file, all sharing one
+ * run token (see \SourceFolioRecords\Io\ErrorLog::runToken() and
+ * pathFor()) recording any record that failed to load and why; a summary
+ * line is also printed to stderr for each type. A record type with zero
+ * input records is skipped
  * (still gets an empty summary log, so a run's outcome is always fully
  * accounted for in logs/).
  *
@@ -174,12 +175,13 @@ function main(array $argv): int {
     $loader = new InventoryLoader($client);
 
     $hadErrors = false;
+    $token = ErrorLog::runToken($inputDir);
 
     foreach (RECORD_TYPES as $recordType => $endpoint) {
         $path = "$inputDir/$recordType.json";
         $records = InventoryFileReader::read($path);
 
-        $errorLogPath = ErrorLog::defaultPathFor($path, $logsDir);
+        $errorLogPath = ErrorLog::pathFor($logsDir, "{$token}_{$recordType}");
         $errorLog = new ErrorLog($errorLogPath);
         $errorLog->open();
         $errorLog->write('Run started ' . date('Y-m-d H:i:s'));
