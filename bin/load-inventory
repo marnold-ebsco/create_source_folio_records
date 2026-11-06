@@ -31,7 +31,7 @@
  *                        at the project root, you're prompted to pick one
  *                        (see \SourceFolioRecords\Cli\ConfigFile::promptFor())
  *                        rather than having to type its path.
- *   --input-dir=PATH     Directory holding instances.json/holdings.json/
+ *   --input-dir=PATH     Directory holding [<mapping>_]instances.json/holdings.json/
  *                        items.json, in the format `bin/build-inventory`
  *                        writes (ndjson or a single JSON array; detected
  *                        automatically) — one of its own per-run
@@ -40,6 +40,10 @@
  *                        omitted, you're prompted to pick one (lists
  *                        every subdirectory of output/ at the project
  *                        root, most recent first).
+ *   --mapping-set=NAME   Which build's files to load, e.g. `ezborrow` for
+ *                        ezborrow_instances.json etc. Only needed if the
+ *                        folder holds more than one set; otherwise the
+ *                        single `*_instances.json` etc. is found itself.
  *   --logs-dir=PATH      Directory to write the per-type timestamped log
  *                        files into (created if missing). Default: logs/
  *                        at the project root.
@@ -124,6 +128,31 @@ function promptForInputDir(string $outputRootDir): string {
     throw new \RuntimeException("'$answer' does not match any output subdirectory under '$outputRootDir'");
 }
 
+/**
+ * Find `$recordType`'s file in `$inputDir`. `bin/build-inventory` names
+ * them `<mapping set>_<type>.json` (e.g. `ezborrow_items.json`); with
+ * `$mappingSet` that exact file is used, otherwise a single matching
+ * `*_<type>.json` (or a plain `<type>.json`, from older builds). A type
+ * with no file at all is skipped (build-inventory writes no file for an
+ * empty record type), but more than one candidate is an error.
+ *
+ * @return The file's path (which may not exist, if none matched).
+ * @throws \RuntimeException If several files match and no mapping set was given.
+ */
+function resolveRecordFile(string $inputDir, string $recordType, string $mappingSet): string {
+    if ($mappingSet !== '') {
+        return "$inputDir/{$mappingSet}_$recordType.json";
+    }
+    $matches = glob("$inputDir/*_$recordType.json") ?: [];
+    if (is_file("$inputDir/$recordType.json")) {
+        $matches[] = "$inputDir/$recordType.json";
+    }
+    if (count($matches) > 1) {
+        throw new \RuntimeException("more than one $recordType file in '$inputDir' (" . implode(', ', array_map('basename', $matches)) . '); pass --mapping-set=NAME to choose');
+    }
+    return $matches[0] ?? "$inputDir/$recordType.json";
+}
+
 function printHelp(): void {
     $source = file_get_contents(__FILE__);
     if (preg_match('#/\*\*(.*?)\*/#s', (string) $source, $m)) {
@@ -151,6 +180,7 @@ function main(array $argv): int {
             return 1;
         }
     }
+    $mappingSet = is_string($options['mapping-set'] ?? null) ? $options['mapping-set'] : '';
     $logsDir = is_string($options['logs-dir'] ?? null) ? rtrim($options['logs-dir'], '/\\') : PROJECT_ROOT . '/logs';
 
     $configOption = is_string($options['config'] ?? null) ? $options['config'] : '';
@@ -178,7 +208,12 @@ function main(array $argv): int {
     $token = ErrorLog::runToken($inputDir);
 
     foreach (RECORD_TYPES as $recordType => $endpoint) {
-        $path = "$inputDir/$recordType.json";
+        try {
+            $path = resolveRecordFile($inputDir, $recordType, $mappingSet);
+        } catch (\RuntimeException $e) {
+            fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+            return 1;
+        }
         $records = InventoryFileReader::read($path);
 
         $errorLogPath = ErrorLog::pathFor($logsDir, "{$token}_{$recordType}");
@@ -190,7 +225,22 @@ function main(array $argv): int {
         $errorLog->write('Input: ' . $path . ' (' . count($records) . ' record(s))');
         $errorLog->write('');
 
-        [$succeeded, $failed] = $loader->loadRecordType($recordType, $endpoint, $records, $errorLog);
+        $isTty = function_exists('posix_isatty') && posix_isatty(STDERR);
+        $lastPct = -1;
+        $progress = function (int $done, int $total, int $failedSoFar) use ($recordType, $isTty, &$lastPct): void {
+            $pct = $total > 0 ? intdiv($done * 100, $total) : 100;
+            if ($isTty) {
+                fwrite(STDERR, sprintf("\r%s: %d/%d (%d%%), %d failed", $recordType, $done, $total, $pct, $failedSoFar));
+            } elseif ($done === $total || intdiv($pct, 10) !== intdiv($lastPct, 10)) {
+                fwrite(STDERR, sprintf("%s: %d/%d (%d%%), %d failed\n", $recordType, $done, $total, $pct, $failedSoFar));
+            }
+            $lastPct = $pct;
+        };
+        fwrite(STDERR, sprintf("%s: loading %d record(s)...\n", $recordType, count($records)));
+        [$succeeded, $failed] = $loader->loadRecordType($recordType, $endpoint, $records, $errorLog, $progress);
+        if ($isTty && $records !== []) {
+            fwrite(STDERR, "\n");
+        }
         if ($failed > 0) {
             $hadErrors = true;
         }

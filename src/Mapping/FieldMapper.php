@@ -46,6 +46,12 @@ final class FieldMapper {
     /** @var array<string, array<string, mixed>> Indexed by normalized, lowercased folio_field. */
     private array $index;
 
+    /** @var array<string, ValueMap> Reference data maps, by normalized folio_field. */
+    private array $valueMaps = [];
+
+    /** @var array<string, string> Default legacy column per value-mapped field. */
+    private array $mapColumns = [];
+
     /**
      * @param $index Mapping entries indexed by lowercased `folio_field`
      *               (bracket-less nested keys are normalized to `[1]`
@@ -115,6 +121,14 @@ final class FieldMapper {
             return null;
         }
 
+        $map = $this->valueMaps[self::normalizeKey(strtolower($folioField))] ?? null;
+        if ($map !== null) {
+            $mapped = $map->lookup($this->legacyValueFor($entry, $map, $row));
+            if ($mapped !== null) {
+                return $mapped;
+            }
+        }
+
         if (isset($entry['value']) && (string) $entry['value'] !== '') {
             return (string) $entry['value'];
         }
@@ -138,6 +152,65 @@ final class FieldMapper {
     }
 
     /**
+     * Attach a reference data map to a field: the row's legacy value is
+     * translated through it (see {@see ValueMap}) before the entry's own
+     * fallbacks apply. The legacy value comes from the map's header column
+     * if the row has it, else the entry's legacy_field/fallback_legacy_field.
+     */
+    public function setValueMap(string $folioField, ValueMap $map, string $defaultColumn = ''): void {
+        $key = self::normalizeKey(strtolower($folioField));
+        $this->valueMaps[$key] = $map;
+        if ($defaultColumn !== '') {
+            $this->mapColumns[$key] = strtolower($defaultColumn);
+        }
+    }
+
+    /**
+     * The legacy (pre-map) value this row supplies for a field — what a
+     * reference data map would be keyed on — or '' if the row has none.
+     * Meant for reporting (e.g. which source values fell through to a
+     * default); {@see resolve()} is what actually builds the record.
+     */
+    public function sourceValue(string $folioField, array $row): string {
+        $key = self::normalizeKey(strtolower($folioField));
+        $entry = $this->index[$key] ?? [];
+        $map = $this->valueMaps[$key] ?? null;
+        $columns = $map !== null ? [$map->sourceColumn(), $this->mapColumns[$key] ?? ''] : [];
+        foreach (['legacy_field', 'fallback_legacy_field'] as $k) {
+            $columns[] = strtolower(trim((string) ($entry[$k] ?? '')));
+        }
+        foreach ($columns as $col) {
+            if ($col !== '' && $col !== 'not mapped' && trim((string) ($row[$col] ?? '')) !== '') {
+                return trim((string) $row[$col]);
+            }
+        }
+        return '';
+    }
+
+    private function legacyValueFor(array $entry, ValueMap $map, array $row): ?string {
+        $columns = [$map->sourceColumn()];
+        foreach ($this->mapColumns as $k => $col) {
+            if ($this->valueMaps[$k] === $map) {
+                $columns[] = $col;
+            }
+        }
+        foreach (['legacy_field', 'fallback_legacy_field'] as $key) {
+            $columns[] = strtolower(trim((string) ($entry[$key] ?? '')));
+        }
+        $first = null;
+        foreach ($columns as $col) {
+            if ($col === '' || $col === 'not mapped' || !array_key_exists($col, $row)) {
+                continue;
+            }
+            $first ??= (string) $row[$col];
+            if (trim((string) $row[$col]) !== '') {
+                return (string) $row[$col];
+            }
+        }
+        return $first;
+    }
+
+    /**
      * Whether a field already has a usable mapping — a non-empty literal
      * `value`, a non-empty `fallback_value`, or a `legacy_field`/
      * `fallback_legacy_field` other than `""`/`"Not mapped"` —
@@ -153,6 +226,9 @@ final class FieldMapper {
         $entry = $this->index[self::normalizeKey(strtolower($folioField))] ?? null;
         if ($entry === null) {
             return false;
+        }
+        if (isset($this->valueMaps[self::normalizeKey(strtolower($folioField))])) {
+            return true;
         }
         if (isset($entry['value']) && (string) $entry['value'] !== '') {
             return true;
@@ -205,6 +281,19 @@ final class FieldMapper {
     }
 
     /**
+     * Drop every `<schemaKey>[N]` entry of a repeatable scalar field (see
+     * {@see scalarListIndicesFor()}) so the field is left off every record.
+     */
+    public function removeScalarList(string $schemaKey): void {
+        $prefix = strtolower($schemaKey);
+        foreach (array_keys($this->index) as $key) {
+            if (preg_match('/^' . preg_quote($prefix, '/') . '\[\d+\]$/', $key) === 1) {
+                unset($this->index[$key], $this->valueMaps[$key], $this->mapColumns[$key]);
+            }
+        }
+    }
+
+    /**
      * Set (or overwrite) a field's literal `value`, so every subsequent
      * {@see resolve()} call for it returns `$value` regardless of any
      * row's actual data — used to inject a single answer collected
@@ -216,6 +305,7 @@ final class FieldMapper {
      */
     public function setLiteral(string $folioField, string $value): void {
         $key = self::normalizeKey(strtolower($folioField));
+        unset($this->valueMaps[$key], $this->mapColumns[$key]);
         $entry = $this->index[$key] ?? ['folio_field' => $folioField];
         $entry['value'] = $value;
         $this->index[$key] = $entry;

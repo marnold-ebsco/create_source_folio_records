@@ -67,6 +67,7 @@ final class RecordBuilder {
         'instanceType' => 'resource type',
         'materialType' => 'material type',
         'loanType' => 'loan type',
+        'callNumberType' => 'call number type',
         'contributorNameType' => 'contributor name type',
         'identifierType' => 'identifier type',
     ];

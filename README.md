@@ -62,7 +62,7 @@ real data — see [Tests](#tests) below.
 ## Usage
 
 ```bash
-php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow
+php bin/build-inventory --mapping-dir=mapping/ezborrow --config=tenant.ini --input=/working/migration/iterations/iteration_1/source_data/items/ezborrow.tsv
 ```
 
 If `--input` is omitted, you're prompted for the input file path
@@ -88,11 +88,23 @@ since its filename doesn't end in `.ini`.
 3. The tenant's own instance types (via `--config`, or the `.ini` prompt
    above) are checked for one literally named `text` — if found, that's used
    automatically for every instance instead of prompting.
-4. An interactive prompt (asked once per run, reused for every record) —
-   only reached if no config was available to check with.
+4. An interactive prompt (asked once per run, reused for every record):
+   a numbered list of the tenant's instance types (from `/instance-types`) to
+   choose from, or free text if no config was available.
 
-`materialTypeId`/`permanentLoanTypeId` (Item) and `permanentLocationId`
-(Holdings) never prompt: each uses whatever's mapped in the relevant file
+Reference data maps: the build also prompts for a location, call number type,
+loan type, material type, and item status map, each chosen from the `.tsv`
+files in `/working/migration/mapping_files` (only likely matches by file name
+are listed, e.g. `location` for locations; type `show_all` to list every map;
+blank skips; change the folder with
+`--reference-map-dir=`, or skip a prompt with `--location-map=`,
+`--call-number-type-map=`, `--loan-type-map=`, `--material-type-map=`,
+`--item-status-map=`). A map's first column is the legacy value and the second
+the FOLIO name (locations: name or code); `*` is the default and `(blank)`
+covers empty values.
+
+Without a map, `materialTypeId`/`permanentLoanTypeId` (Item) and
+`permanentLocationId` (Holdings) each use whatever's mapped in the relevant file
 under the chosen `--mapping-dir` — `materialTypeId` from `Material_Format`,
 `permanentLocationId` from `Item_Permanent_Shelving_Location` falling back to
 `Item_Holding_Location` — falling back further to each mapping file's own
@@ -125,7 +137,7 @@ php bin/build-inventory --input=ezborrow.tsv --mapping-dir=mapping/ezborrow \
     --config=tenant.ini --resource-type=text --test
 ```
 
-Output (`instances.json`, `holdings.json`, `items.json`, one JSON object
+Output (`<mapping>_instances.json`, `<mapping>_holdings.json`, `<mapping>_items.json` — e.g. `ezborrow_items.json` for `--mapping-dir=mapping/ezborrow` — one JSON object
 per line) is written into its own fresh subdirectory of `output/`, named
 after the input file plus a timestamp — e.g.
 `output/ezborrow_20260925_154212_9c3ada/` — so each run's output is kept

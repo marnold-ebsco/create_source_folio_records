@@ -38,7 +38,7 @@ final class HoldingsSchema {
     public const SCALAR_FIELDS = [
         'permanentLocationId' => 'live:location',
         'temporaryLocationId' => 'ref:location',
-        'callNumberTypeId' => 'ref:callNumberType',
+        'callNumberTypeId' => 'live:callNumberType',
         'callNumberPrefix' => 'string',
         'callNumber' => 'string',
         'callNumberSuffix' => 'string',
