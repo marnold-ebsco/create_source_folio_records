@@ -53,9 +53,11 @@ final class InventoryLoader {
      * @param $records    The records to load, as decoded arrays.
      * @param $errorLog   Where to log failures (already open; not
      *                    opened or closed here).
+     * @param $onProgress Optional `fn(int $done, int $total, int $failed)`,
+     *                    called after each record (success or failure).
      * @return [$succeeded, $failed] counts.
      */
-    public function loadRecordType(string $recordType, string $endpoint, array $records, ErrorLog $errorLog): array {
+    public function loadRecordType(string $recordType, string $endpoint, array $records, ErrorLog $errorLog, ?callable $onProgress = null): array {
         $succeeded = 0;
         $failed = 0;
         $bookkeepingFields = self::BOOKKEEPING_FIELDS[$recordType] ?? [];
@@ -63,13 +65,45 @@ final class InventoryLoader {
             $id = is_array($record) && isset($record['id']) ? (string) $record['id'] : '(no id)';
             $payload = $bookkeepingFields !== [] ? array_diff_key($record, array_flip($bookkeepingFields)) : $record;
             try {
+                $payload = $this->keepExistingHrid($endpoint, $payload);
                 $this->client->upsert($endpoint, $payload);
                 $succeeded++;
             } catch (\Throwable $e) {
                 $failed++;
                 $errorLog->write("[$recordType] id=$id: " . $e->getMessage());
             }
+            if ($onProgress !== null) {
+                $onProgress($succeeded + $failed, count($records), $failed);
+            }
         }
         return [$succeeded, $failed];
+    }
+
+    /**
+     * FOLIO refuses a PUT that changes a record's `hrid` ("The hrid field
+     * cannot be changed"), and built records carry none — so reloading
+     * over an existing record would fail. Likewise, with optimistic locking
+     * on, a PUT without the stored `_version` gets a 409. If the record
+     * already exists, carry its `hrid` and `_version` into the payload. Any lookup failure (not found,
+     * connection, ...) is ignored here: {@see FolioClient::upsert()} then
+     * runs its own check and surfaces/handles it.
+     */
+    private function keepExistingHrid(string $endpoint, array $payload): array {
+        if (isset($payload['hrid']) || !isset($payload['id'])) {
+            return $payload;
+        }
+        try {
+            $existing = $this->client->getOne($endpoint, (string) $payload['id']);
+        } catch (\Throwable) {
+            return $payload;
+        }
+        if (isset($existing->hrid) && $existing->hrid !== '') {
+            $payload['hrid'] = $existing->hrid;
+        }
+        // Optimistic locking: a PUT must carry the stored record's current _version.
+        if (isset($existing->_version) && !isset($payload['_version'])) {
+            $payload['_version'] = $existing->_version;
+        }
+        return $payload;
     }
 }

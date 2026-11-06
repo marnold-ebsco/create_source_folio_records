@@ -127,6 +127,22 @@
  *   --loan-type=NAME          Literal permanent loan type name for every
  *                             item's permanentLoanTypeId, overriding the
  *                             Can circulate fallback.
+ *   --reference-map-dir=PATH  Folder of reference data maps (default:
+ *                             /working/migration/mapping_files). Locations,
+ *                             call number types, loan types and material
+ *                             types each prompt for a .tsv from it (blank
+ *                             skips). Skip prompts with --location-map=,
+ *                             --call-number-type-map=, --loan-type-map=,
+ *                             --material-type-map=, --item-status-map= (path or file name).
+ *                             Maps: legacy value<TAB>FOLIO name/code; `*` =
+ *                             default, `(blank)` = empty values.
+ *   --statistical-code=X      `none`, or a statistical code UUID, to skip the
+ *                             statistical code questions. Otherwise you're asked
+ *                             whether to include one, then pick a code type and
+ *                             one of its codes (applied to all three record types).
+ *   --suppress[=no]           Set discoverySuppress on every Instance (not
+ *                             holdings/items) without prompting; `=no` skips
+ *                             it without prompting. If omitted, you're asked.
  *   --test                    Force materialTypeId and permanentLocationId
  *                             to the literal name "Migration" for every
  *                             row, resolved via a live lookup against the
@@ -171,6 +187,7 @@ use SourceFolioRecords\LegacyIdentifier;
 use SourceFolioRecords\LiveReferenceResolver;
 use SourceFolioRecords\LocationResolver;
 use SourceFolioRecords\Mapping\FieldMapper;
+use SourceFolioRecords\Mapping\ValueMap;
 use SourceFolioRecords\RecordBuilder;
 use SourceFolioRecords\RecordGrouping;
 use SourceFolioRecords\ReferenceRegistry;
@@ -186,6 +203,7 @@ use phpFolioClient\FolioReferenceDataManager;
 use phpFolioClient\FolioUtils;
 
 const PROJECT_ROOT = __DIR__ . '/..';
+const REFERENCE_MAP_DIR = '/working/migration/mapping_files';
 
 /**
  * List every immediate subdirectory of `$mappingRootDir` — each expected
@@ -245,6 +263,67 @@ function promptForMappingDir(string $mappingRootDir): string {
         return "$mappingRootDir/$answer";
     }
     throw new \RuntimeException("'$answer' does not match any mapping set under '$mappingRootDir'");
+}
+
+/**
+ * Choose a reference data map (*.tsv) from `$dir` for one kind of reference
+ * data — offering only files whose name contains `$keyword` (normalized,
+ * lowercase) unless the user types `show_all` (or nothing matched).
+ * Skipped entirely if `$cliOptionValue` (a path, or a file name within
+ * `$dir`) already names one. Enter skips (no map for this kind).
+ *
+ * @return The chosen map, or null if skipped.
+ * @throws \RuntimeException If the answer doesn't match a file.
+ */
+function promptForReferenceMap(string $label, string $dir, string $cliOptionValue, string $keyword): ?ValueMap {
+    $path = $cliOptionValue;
+    if ($path === '') {
+        $all = [];
+        foreach (scandir($dir) ?: [] as $f) {
+            if (str_ends_with($f, '.tsv') && is_file("$dir/$f")) {
+                $all[] = $f;
+            }
+        }
+        if ($all === []) {
+            throw new \RuntimeException("no .tsv files found in '$dir'");
+        }
+        // Guess: files whose name (ignoring case, `_`, `-`, spaces) contains the keyword.
+        $guesses = array_values(array_filter(
+            $all,
+            fn(string $f): bool => str_contains(preg_replace('/[^a-z0-9]/', '', strtolower($f)), $keyword)
+        ));
+        $showAll = $guesses === [];
+        while (true) {
+            $files = $showAll ? $all : $guesses;
+            fwrite(STDERR, "Which $label map should be used?" . ($showAll && $guesses === [] ? " (no likely match; showing all)" : '') . "\n");
+            foreach ($files as $i => $f) {
+                fwrite(STDERR, '  ' . ($i + 1) . ") $f\n");
+            }
+            if (!$showAll) {
+                fwrite(STDERR, "  show_all) list every map in $dir\n");
+            }
+            fwrite(STDERR, 'Enter a number or file name' . ($showAll ? '' : ', or show_all') . ' (blank to skip): ');
+            $answer = trim((string) fgets(STDIN));
+            if ($answer === '') {
+                return null;
+            }
+            if (!$showAll && strcasecmp($answer, 'show_all') === 0) {
+                $showAll = true;
+                continue;
+            }
+            if (ctype_digit($answer) && isset($files[((int) $answer) - 1])) {
+                $path = "$dir/{$files[((int) $answer) - 1]}";
+            } elseif (in_array($answer, $all, true)) {
+                $path = "$dir/$answer";
+            } else {
+                throw new \RuntimeException("'$answer' does not match any file in '$dir'");
+            }
+            break;
+        }
+    } elseif (!str_contains($path, '/') && is_file("$dir/$path")) {
+        $path = "$dir/$path";
+    }
+    return ValueMap::fromFile($path);
 }
 
 /**
@@ -324,11 +403,47 @@ function resolveResourceTypeLiteral(FieldMapper $mapper, string $cliOptionValue,
         $mapper->setLiteral('instanceTypeId', 'text');
         return;
     }
-    fwrite(STDERR, 'Enter the resource type to use for every instance: ');
-    $answer = trim((string) fgets(STDIN));
+    $names = tenantInstanceTypeNames($configOption);
+    if ($names !== []) {
+        fwrite(STDERR, "Which resource type should every instance use?\n");
+        foreach ($names as $i => $name) {
+            fwrite(STDERR, '  ' . ($i + 1) . ") $name\n");
+        }
+        fwrite(STDERR, 'Enter a number or name: ');
+        $answer = trim((string) fgets(STDIN));
+        if (ctype_digit($answer) && isset($names[((int) $answer) - 1])) {
+            $answer = $names[((int) $answer) - 1];
+        }
+    } else {
+        fwrite(STDERR, 'Enter the resource type to use for every instance: ');
+        $answer = trim((string) fgets(STDIN));
+    }
     if ($answer !== '') {
         $mapper->setLiteral('instanceTypeId', $answer);
     }
+}
+
+/**
+ * The tenant's instance type names (from `/instance-types`), sorted, for
+ * choosing from. Empty if `--config` wasn't given or the lookup fails
+ * (a failure is printed to stderr), so the caller falls back to free text.
+ *
+ * @return list<string>
+ */
+function tenantInstanceTypeNames(string $configOption): array {
+    if ($configOption === '') {
+        return [];
+    }
+    try {
+        $config = new FolioConfig($configOption);
+        $client = new FolioClient($config, new FolioAuth($config), new FolioUtils());
+        $names = array_values(fetchNamesById($client, 'instance-types'));
+    } catch (\Throwable $e) {
+        fwrite(STDERR, "Warning: couldn't list instance types from '$configOption': " . $e->getMessage() . "\n");
+        return [];
+    }
+    sort($names, SORT_NATURAL | SORT_FLAG_CASE);
+    return $names;
 }
 
 /**
@@ -435,6 +550,7 @@ function buildLiveResolvers(FieldMapper $instanceMapper, FieldMapper $holdingsMa
         'instanceType' => $instanceMapper->isMapped('instanceTypeId'),
         'materialType' => $itemMapper->isMapped('materialTypeId'),
         'loanType' => $itemMapper->isMapped('permanentLoanTypeId'),
+        'callNumberType' => $holdingsMapper->isMapped('callNumberTypeId'),
         'contributorNameType' => mapperHasNestedGroupField($instanceMapper, 'contributors', 'contributorNameTypeId'),
         'identifierType' => mapperHasNestedGroupField($instanceMapper, 'identifiers', 'identifierTypeId'),
     ];
@@ -464,6 +580,7 @@ function buildLiveResolvers(FieldMapper $instanceMapper, FieldMapper $holdingsMa
 
     $liveReferenceEndpoints = [
         'instanceType' => 'instance-types',
+        'callNumberType' => 'call-number-types',
         'contributorNameType' => 'contributor-name-types',
         'identifierType' => 'identifier-types',
     ];
@@ -522,6 +639,116 @@ function checkLiveFallbacksExist(FieldMapper $itemMapper, FieldMapper $holdingsM
     }
 
     return $problems;
+}
+
+/**
+ * Record that `$field`'s value for this row resolved to the placeholder
+ * 'Migration' (via a map's `*` default or the mapping's fallback), so it
+ * can be listed at the end as something still needing a map entry.
+ *
+ * @param array<string, array<string, int>> $tally field => legacy value => row count
+ */
+function tallyMigrationFallback(array &$tally, FieldMapper $mapper, string $field, array $row): void {
+    if (strcasecmp((string) $mapper->resolve($field, $row), 'Migration') !== 0) {
+        return;
+    }
+    $legacy = $mapper->sourceValue($field, $row);
+    $legacy = $legacy === '' ? '(blank)' : $legacy;
+    $tally[$field][$legacy] = ($tally[$field][$legacy] ?? 0) + 1;
+}
+
+/**
+ * Interactively decide which statistical code (if any) every record gets:
+ * ask whether to include one, then list the tenant's statistical code
+ * types, then only the codes of the chosen type. Replaces whatever
+ * `statisticalCodeIds[N]` entries the three mapping files had (all three
+ * record types get the same chosen code); answering no removes them.
+ *
+ * @param $cliOption `--statistical-code`: `none`, or a statistical code UUID; `''` to prompt.
+ * @throws \RuntimeException If a code is wanted but there's no `--config`, or the tenant has none to offer.
+ */
+function chooseStatisticalCode(array $mappers, string $configOption, string $cliOption): void {
+    $codeId = null;
+    if ($cliOption !== '') {
+        $codeId = strcasecmp($cliOption, 'none') === 0 ? null : $cliOption;
+    } else {
+        fwrite(STDERR, 'Include a statistical code on the records? [y/N]: ');
+        if (in_array(strtolower(trim((string) fgets(STDIN))), ['y', 'yes'], true)) {
+            if ($configOption === '') {
+                throw new \RuntimeException("choosing a statistical code needs a tenant to list them from, but --config wasn't given");
+            }
+            $config = new FolioConfig($configOption);
+            $client = new FolioClient($config, new FolioAuth($config), new FolioUtils());
+            $types = fetchNamesById($client, 'statistical-code-types');
+            asort($types, SORT_NATURAL | SORT_FLAG_CASE);
+            $typeId = pickFromList('statistical code type', array_map(null, array_keys($types), array_values($types)));
+            $codes = [];
+            foreach ($client->get('statistical-codes') as $c) {
+                if (($c->statisticalCodeTypeId ?? null) === $typeId) {
+                    $codes[] = [$c->id, ($c->code ?? '') . ' - ' . ($c->name ?? '')];
+                }
+            }
+            usort($codes, fn($a, $b) => strnatcasecmp($a[1], $b[1]));
+            if ($codes === []) {
+                throw new \RuntimeException("the tenant has no statistical codes of type '{$types[$typeId]}'");
+            }
+            $codeId = pickFromList('statistical code', $codes);
+        }
+    }
+
+    foreach ($mappers as $mapper) {
+        $mapper->removeScalarList('statisticalCodeIds');
+        if ($codeId !== null) {
+            $mapper->setLiteral('statisticalCodeIds[0]', $codeId);
+        }
+    }
+}
+
+/**
+ * Show a numbered list of `[id, label]` pairs and return the chosen id.
+ *
+ * @throws \RuntimeException If the answer isn't a listed number.
+ */
+function pickFromList(string $what, array $items): string {
+    if ($items === []) {
+        throw new \RuntimeException("no {$what}s found in the tenant");
+    }
+    fwrite(STDERR, "Which $what?\n");
+    foreach ($items as $i => [, $label]) {
+        fwrite(STDERR, '  ' . ($i + 1) . ") $label\n");
+    }
+    fwrite(STDERR, 'Enter a number: ');
+    $answer = trim((string) fgets(STDIN));
+    if (!ctype_digit($answer) || !isset($items[((int) $answer) - 1])) {
+        throw new \RuntimeException("'$answer' is not a listed $what");
+    }
+    return $items[((int) $answer) - 1][0];
+}
+
+/**
+ * Print (and log) every legacy location/material type value that fell back
+ * to 'Migration', sorted by how often it occurred.
+ *
+ * @param array<string, array<string, int>> $tally
+ */
+function reportMigrationFallbacks(array $tally, ErrorLog $errorLog): void {
+    $labels = ['permanentLocationId' => 'Locations', 'materialTypeId' => 'Material types'];
+    foreach ($labels as $field => $label) {
+        $values = $tally[$field] ?? [];
+        if ($values === []) {
+            continue;
+        }
+        arsort($values);
+        $lines = ["$label that resolved to 'Migration' and need a map entry (" . count($values) . '):'];
+        foreach ($values as $value => $count) {
+            $lines[] = sprintf('  %s  (%d)', $value, $count);
+        }
+        $lines[] = '';
+        foreach ($lines as $line) {
+            fwrite(STDERR, $line . "\n");
+            $errorLog->write($line);
+        }
+    }
 }
 
 function printHelp(): void {
@@ -606,6 +833,27 @@ function main(array $argv): int {
         is_string($options['resource-type'] ?? null) ? $options['resource-type'] : '',
         $configOption
     );
+    try {
+        $refDir = is_string($options['reference-map-dir'] ?? null) ? rtrim($options['reference-map-dir'], '/\\') : REFERENCE_MAP_DIR;
+        $refMaps = [
+            [$holdingsMapper, 'permanentLocationId', 'location', 'location-map', '', 'location'],
+            [$holdingsMapper, 'callNumberTypeId', 'call number type', 'call-number-type-map', '', 'callnumber'],
+            [$itemMapper, 'permanentLoanTypeId', 'loan type', 'loan-type-map', '', 'loan'],
+            [$itemMapper, 'materialTypeId', 'material type', 'material-type-map', '', 'material'],
+            [$itemMapper, 'status.name', 'item status', 'item-status-map', 'Item_Status_Current_Status', 'status'],
+        ];
+        foreach ($refMaps as [$mapper, $field, $label, $opt, $defaultCol, $keyword]) {
+            $map = promptForReferenceMap($label, $refDir, is_string($options[$opt] ?? null) ? $options[$opt] : '', $keyword);
+            if ($map !== null) {
+                $mapper->setValueMap($field, $map, $defaultCol);
+                $errorLog->write("Reference map for $field: $label");
+            }
+        }
+    } catch (\RuntimeException $e) {
+        fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        return 1;
+    }
+
     $materialTypeOption = is_string($options['material-type'] ?? null) ? $options['material-type'] : '';
     if ($materialTypeOption !== '') {
         $itemMapper->setLiteral('materialTypeId', $materialTypeOption);
@@ -613,6 +861,24 @@ function main(array $argv): int {
     $loanTypeOption = is_string($options['loan-type'] ?? null) ? $options['loan-type'] : '';
     if ($loanTypeOption !== '') {
         $itemMapper->setLiteral('permanentLoanTypeId', $loanTypeOption);
+    }
+
+    if (isset($options['suppress'])) {
+        $suppressInstances = $options['suppress'] !== 'no';
+    } else {
+        fwrite(STDERR, 'Suppress all instance records from discovery? [y/N]: ');
+        $suppressInstances = in_array(strtolower(trim((string) fgets(STDIN))), ['y', 'yes'], true);
+    }
+
+    try {
+        chooseStatisticalCode(
+            [$instanceMapper, $holdingsMapper, $itemMapper],
+            $configOption,
+            is_string($options['statistical-code'] ?? null) ? $options['statistical-code'] : ''
+        );
+    } catch (\Throwable $e) {
+        fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        return 1;
     }
 
     $testMode = isset($options['test']);
@@ -660,6 +926,7 @@ function main(array $argv): int {
     $holdingsIdByKey = [];
     $hadErrors = false;
     $skippedItems = 0;
+    $migrationFallbacks = [];
 
     foreach ($reader->rows() as $rowNum => $row) {
         $instanceKey = RecordGrouping::instanceKey($row);
@@ -683,6 +950,9 @@ function main(array $argv): int {
             $instance = $instanceResult->getRecord();
             $instance['id'] = $registry->resolve('instance', $instanceKey, $rowNum);
             $instance['legacyIdentifier'] = LegacyIdentifier::compute($row);
+            if ($suppressInstances) {
+                $instance['discoverySuppress'] = true;
+            }
             $instanceIdByKey[$instanceKey] = $instance['id'];
             $instances[] = $instance;
         }
@@ -706,6 +976,7 @@ function main(array $argv): int {
                 continue;
             }
 
+            tallyMigrationFallback($migrationFallbacks, $holdingsMapper, 'permanentLocationId', $row);
             $holdingsRecord = $holdingsResult->getRecord();
             $holdingsRecord['id'] = $registry->resolve('holdings', $holdingsKey, $rowNum);
             $holdingsRecord['instanceId'] = $instanceId;
@@ -729,6 +1000,7 @@ function main(array $argv): int {
             continue;
         }
 
+        tallyMigrationFallback($migrationFallbacks, $itemMapper, 'materialTypeId', $row);
         $item = $itemResult->getRecord();
         $item['id'] = $registry->resolve('item', LegacyIdentifier::compute($row), $rowNum);
         $item['holdingsRecordId'] = $holdingsId;
@@ -736,11 +1008,13 @@ function main(array $argv): int {
     }
     $reader->close();
 
-    writeRecords($instances, $outputDir . '/instances.json', $format);
-    writeRecords($holdings, $outputDir . '/holdings.json', $format);
-    writeRecords($items, $outputDir . '/items.json', $format);
+    $filePrefix = basename($mappingDir) . '_';
+    writeRecords($instances, $outputDir . "/{$filePrefix}instances.json", $format);
+    writeRecords($holdings, $outputDir . "/{$filePrefix}holdings.json", $format);
+    writeRecords($items, $outputDir . "/{$filePrefix}items.json", $format);
 
     $errorLog->write('');
+    reportMigrationFallbacks($migrationFallbacks, $errorLog);
     $errorLog->write(sprintf(
         'Built %d instance(s), %d holdings record(s), %d item(s); skipped %d row(s) with a failing record.',
         count($instances),
@@ -758,6 +1032,13 @@ function main(array $argv): int {
         $skippedItems,
         $errorLogPath
     ));
+    fwrite(STDERR, 'Output files: ' . realpath($outputDir) . "\n");
+    foreach (['instances', 'holdings', 'items'] as $name) {
+        $file = "$outputDir/{$filePrefix}$name.json";
+        if (is_file($file)) {
+            fwrite(STDERR, '  ' . realpath($file) . "\n");
+        }
+    }
 
     return $hadErrors ? 1 : 0;
 }

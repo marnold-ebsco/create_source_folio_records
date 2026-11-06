@@ -21,6 +21,7 @@ final class LocationResolver {
     /** @param $namesById Snapshot of existing locations: id => name. */
     public function __construct(
         private readonly array $namesById,
+        private readonly array $codesById = [],
     ) {
     }
 
@@ -31,7 +32,7 @@ final class LocationResolver {
      *                   environments; null uses the client's default tenant.
      */
     public static function fromReferenceDataManager(FolioReferenceDataManager $manager, ?string $tenant_id = null): self {
-        return new self($manager->getLocations($tenant_id));
+        return new self($manager->getLocations($tenant_id), $manager->getLocationCodes($tenant_id));
     }
 
     /**
@@ -58,6 +59,11 @@ final class LocationResolver {
     public function idForName(string $name): ?string {
         foreach ($this->namesById as $id => $existingName) {
             if (strcasecmp($existingName, $name) === 0) {
+                return $id;
+            }
+        }
+        foreach ($this->codesById as $id => $code) {
+            if (strcasecmp((string) $code, $name) === 0) {
                 return $id;
             }
         }
